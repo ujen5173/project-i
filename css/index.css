@@ -1,0 +1,319 @@
+header {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+}
+
+header nav { 
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+ul {
+  list-style: none;
+  display: flex; 
+}
+
+ul li {
+  font-size: 1rem;
+}
+
+.left-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav__item a {
+  padding: 0.5rem 0.75rem;
+  color: var(--background);
+
+}
+
+.btns__wrapper {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem; 
+  border-radius: 5px;
+  background-color: var(--primary);
+  cursor: pointer;
+  font-size: 1rem;
+  border: 1px solid var(--priamry);
+  border-radius: var(--radius);
+  color: var(--primary-foreground);
+}
+
+.btn:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn a {
+  all:unset;
+  color: var(--primary-foreground);
+}
+
+.btn-link {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.btns__wrapper button a{ 
+  color: var(--background);
+}
+
+.btn-link a {
+  color: var(--foreground);
+}
+
+.nav__logo .logo {
+  color: var(--background);
+  font-family: "merriweather";
+}
+
+/* Hero Section */
+.hero-section {
+  width: 100%;
+  background-image: url(../images/hero-bg.jpg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  height: 70vh;
+  padding-top:60px;
+  min-height: 400px; 
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.hero-section__wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hero-section-content {
+  z-index: 50;
+  position: relative;
+  text-align: center;
+}
+
+.hero-section__title {
+  font-size: 3.25rem;
+  line-height: 3.5rem;
+  color: var(--background);
+  margin-bottom: 1.75rem;
+}
+
+.hero-section__description {
+  font-size: 1.25rem;
+  color: var(--background);
+  margin-bottom: 3rem;
+}
+
+.booking-form {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  background-color: var(--background);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.booking-form div {
+  display: flex;
+  flex-direction:column; 
+  align-items: start;
+  flex: 1;
+  border-right: 1px solid var(--border-light);
+}
+
+.booking-form div:nth-last-child(2) {
+  border-right: none;
+}
+
+.booking-form div label {
+  color: #475569;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.booking-form div input::placeholder {
+  color: #94a3b8;
+}
+
+.booking-form div input {
+  background: transparent;
+  outline: none;
+  padding: 0.5rem 0; 
+  font-weight: 500;
+  border: none;
+  font-size: 1.125rem; 
+}
+
+.most-popular-hotels {
+  padding: 3rem 0;
+}
+
+.most-popular-hotels__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.most-popular-hotels__list {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.most-popular-hotel__img {
+  margin-bottom: 0.75rem;
+}
+
+.most-popular-hotel__img img {
+  aspect-ratio: 16/11;
+  width: 100%;
+  border-radius: var(--radius)
+}
+
+.most-popular-hotel__title { 
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 1.25rem; 
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.hotel-location {
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+
+.price {
+  color: #1e293b;  
+  font-size: 1.125rem;
+}
+
+.rating_wrapper {
+margin-bottom: 10px;
+  display: flex;
+  align-items:center;
+  gap: 5px;
+}
+
+
+/* Listings for students */
+
+.latest-listings-stds {
+  padding: 3rem 0;
+}
+
+.latest-listings-stds__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.latest-listings-stds__list {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.latest-listings-stds__img {
+  margin-bottom: 0.75rem;
+}
+
+.latest-listings-stds__img img {
+  aspect-ratio: 16/11;
+  width: 100%;
+  border-radius: var(--radius)
+}
+ 
+.latest-listings-stds__card__title { 
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 1.25rem; 
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.flex_wrapper {
+display: flex;
+gap: 4px;
+margin-bottom: 7px;
+}
+
+/* footer */
+.footer {
+  background: #f1f5f9;
+}
+
+.footer__wrapper {
+  padding: 4rem 0.5rem;
+
+}
+
+.footer_grid {
+  display: flex;
+  gap: 30px;
+}
+
+
+.grid-child {
+  flex: 1;
+}
+
+.child-lg {
+  flex: 2;
+}
+
+.footer_nav_list_header, .footer_logo {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.footer_logo {
+  font-family: "merriweather";
+  font-size: 1.5rem;
+}
+
+.grid-child > ul {
+  flex-direction: column;
+}
+
+.grid-child > ul > li {
+  padding: 0.2rem 0;
+}
+
+.copyright {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.copyright__wrapper {
+  padding: 1rem 0;
+}
