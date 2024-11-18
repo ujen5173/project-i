@@ -1,3 +1,28 @@
+<?php
+
+// header.php
+session_start();
+require_once __DIR__ . '/db/config.php';
+
+// Function to get user details
+function getUserDetails($conn, $user_id) {
+    $stmt = $conn->prepare("SELECT name, email FROM users WHERE id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result->fetch_assoc();
+}
+
+// Check if user is logged in
+$isLoggedIn = isset($_SESSION['user_id']);
+$userDetails = null;
+
+if ($isLoggedIn) {
+    $userDetails = getUserDetails($conn, $_SESSION['user_id']);
+}
+ 
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -18,10 +43,10 @@
     href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
     rel="stylesheet">
 
-    <!-- Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap" rel="stylesheet">
 
 
   <title>Document</title>
@@ -59,14 +84,32 @@
           </li>
         </ul>
       </div>
+  <?php if ($isLoggedIn): ?>
+                    <div class="user-menu" style="display: flex; gap: 1rem; align-items: center" id="userMenu">
+                            <div class="user-avatar">
+                                <?php if ($userDetails['name']): ?>
+                                  <p style="color: white;">
+                                    Logged in as <?php echo $userDetails['name']; ?>
+                                  </p>
+                                <?php endif; ?>
+                            </div> 
+                            <button class="btn btn-sm">Logout</button>
+                    </div>
+                <?php else: ?>
 
       <div class="btns__wrapper">
-        <button class="btn btn-link">
-          <a href="#">Login / Sign in</a>
-        </button>
+        <a href="/ujen/login.php">
+        <button style="color: white;" class="btn btn-link">
+            Login / Sign in
+          </button>
+        </a>
+        <a href="/ujen/sign-up.php">
         <button class="btn btn-secondary">
-          <a href="#">Register</a>
-        </button>
+            Register
+          </button>
+          </a>
+        
+        <?php endif; ?>
       </div>
     </nav>
   </header>
@@ -398,5 +441,25 @@
     </div>
   </footer>
 </body>
+
+<script>
+        // Toggle dropdown menu
+        const userMenu = document.getElementById('userMenu');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+
+        if (userMenu) {
+            userMenu.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('active');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userMenu.contains(e.target)) {
+                    dropdownMenu.classList.remove('active');
+                }
+            });
+        }
+    </script>
 
 </html>

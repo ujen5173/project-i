@@ -1,0 +1,158 @@
+body {
+  background: linear-gradient(135deg, #ff385c 0%, #e61e4d 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.container {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 500px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.logo {
+  font-family: "merriweather";
+}
+
+.group {
+  display: flex;
+  gap: 1rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo img {
+  width: 150px;
+  height: auto;
+}
+
+h1 {
+  color: #484848;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+input {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: #ff385c;
+  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.2);
+}
+
+.password-requirements {
+  font-size: 0.8rem;
+  color: #717171;
+  margin-top: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.password-requirements ul {
+  list-style-type: none;
+  margin-top: 0.3rem;
+}
+
+.password-requirements li {
+  margin-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+}
+
+.password-requirements li::before {
+  content: "•";
+  color: #717171;
+  margin-right: 0.5rem;
+}
+
+.error-message {
+  color: #ff385c;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  display: none;
+}
+
+button {
+  width: 100%;
+  padding: 1rem;
+  background: #ff385c;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background: #e61e4d;
+}
+
+.login-link {
+  text-align: center;
+  color: #717171;
+  font-size: 0.9rem;
+  margin-top: 1.5rem;
+}
+
+.login-link a {
+  color: #ff385c;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.login-link a:hover {
+  text-decoration: underline;
+}
+
+.message {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.error {
+  background: #fff2f2;
+  color: #ff385c;
+}
+
+.success {
+  background: #f0fff4;
+  color: #38a169;
+}
