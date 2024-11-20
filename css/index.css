@@ -92,6 +92,9 @@ a:hover {
 .nav__logo .logo {
   color: var(--background);
   font-family: "merriweather";
+  font-size: 1.5rem;
+  font-weight: 600;
+  
 }
 
 .btn-sm {

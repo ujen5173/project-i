@@ -53,13 +53,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - StaySpot</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/signup.css">
-         <!-- Lato Font -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up - StaySpot</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/signup.css">
+  <!-- Lato Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -76,175 +77,179 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   <!-- Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
+    rel="stylesheet">
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
 </head>
+
 <body>
-    <div class="container">
-        <a href="/ujen">
-            <h1 class="logo">
-                StayHaven
-            </h1>
-        </a>
-        
-        <?php if ($error): ?>
-            <div class="message error">
-                <?php echo htmlspecialchars($error); ?>
-            </div>
-        <?php endif; ?>
+  <div class="container">
+    <a href="/stayhaven">
+      <h1 class="logo">
+        StayHaven
+      </h1>
+    </a>
 
-        <?php if ($success): ?>
-            <div class="message success">
-                <?php echo htmlspecialchars($success); ?>
-            </div>
-        <?php endif; ?>
-
-        <h1>Create an account</h1>
-        
-        <form id="registrationForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
-            <div class="group">
-
-            <div class="input-group">
-                 <input type="text" name="name" id="name" placeholder="Full name" required>
-                <div class="error-message" id="nameError"></div>
-            </div>
-            
-            <div class="input-group">
-                 <input type="email" name="email" id="email" placeholder="Email address" required>
-                <div class="error-message" id="emailError"></div>
-            </div>
-            </div>
- 
-            
-            <div class="input-group">
-                 <input type="password" name="password" id="password" placeholder="Password" required>
-                <div class="error-message" id="passwordError"></div>
-                <div class="password-requirements">
-                    Password requirements:
-                    <ul>
-                        <li id="length">At least 8 characters</li>
-                        <li id="letter">At least one letter</li>
-                        <li id="number">At least one number</li>
-                        <li id="special">At least one special character</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="input-group">
-                <i class="fas fa-lock"></i>
-                <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm password" required>
-                <div class="error-message" id="confirmPasswordError"></div>
-            </div>
-            
-            <button type="submit">Sign up</button>
-        </form>
-         
-        <p class="login-link">
-            Already have an account? <a href="login.php">Log in</a>
-        </p> 
+    <?php if ($error): ?>
+    <div class="message error">
+      <?php echo htmlspecialchars($error); ?>
     </div>
+    <?php endif; ?>
 
-    <script>
-        document.getElementById('registrationForm').addEventListener('submit', function(e) {
-            let isValid = true;
-            const name = document.getElementById('name');
-            const email = document.getElementById('email');
-            const password = document.getElementById('password');
-            const confirmPassword = document.getElementById('confirm_password');
-            
-            // Reset error messages
-            document.querySelectorAll('.error-message').forEach(elem => {
-                elem.style.display = 'none';
-            });
-            
-            // Name validation
-            if (name.value.length < 2) {
-                document.getElementById('nameError').textContent = 'Name must be at least 2 characters long';
-                document.getElementById('nameError').style.display = 'block';
-                isValid = false;
-            }
-            
-            // Email validation
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email.value)) {
-                document.getElementById('emailError').textContent = 'Please enter a valid email address';
-                document.getElementById('emailError').style.display = 'block';
-                isValid = false;
-            }
-            
-            
-            // Password validation
-            const hasLetter = /[a-zA-Z]/.test(password.value);
-            const hasNumber = /\d/.test(password.value);
-            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password.value);
-            const isLongEnough = password.value.length >= 8;
-            
-            document.getElementById('length').style.color = isLongEnough ? '#38a169' : '#717171';
-            document.getElementById('letter').style.color = hasLetter ? '#38a169' : '#717171';
-            document.getElementById('number').style.color = hasNumber ? '#38a169' : '#717171';
-            document.getElementById('special').style.color = hasSpecial ? '#38a169' : '#717171';
-            
-            if (!isLongEnough || !hasLetter || !hasNumber || !hasSpecial) {
-                document.getElementById('passwordError').textContent = 'Password does not meet requirements';
-                document.getElementById('passwordError').style.display = 'block';
-                isValid = false;
-            }
-            
-            // Confirm password validation
-            if (password.value !== confirmPassword.value) {
-                document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
-                document.getElementById('confirmPasswordError').style.display = 'block';
-                isValid = false;
-            }
-            
-            if (!isValid) {
-                e.preventDefault();
-            }
-        });
+    <?php if ($success): ?>
+    <div class="message success">
+      <?php echo htmlspecialchars($success); ?>
+    </div>
+    <?php endif; ?>
 
-        // Real-time password requirement checking
-        document.getElementById('password').addEventListener('input', function(e) {
-            const password = e.target.value;
-            const hasLetter = /[a-zA-Z]/.test(password);
-            const hasNumber = /\d/.test(password);
-            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-            const isLongEnough = password.length >= 8;
-            
-            document.getElementById('length').style.color = isLongEnough ? '#38a169' : '#717171';
-            document.getElementById('letter').style.color = hasLetter ? '#38a169' : '#717171';document.getElementById('number').style.color = hasNumber ? '#38a169' : '#717171';
-            document.getElementById('special').style.color = hasSpecial ? '#38a169' : '#717171';
-        });
+    <h1>Create an account</h1>
 
-        // Confirm password real-time validation
-        document.getElementById('confirm_password').addEventListener('input', function(e) {
-            const password = document.getElementById('password').value;
-            const confirmPassword = e.target.value;
-            const errorElement = document.getElementById('confirmPasswordError');
-            
-            if (password !== confirmPassword) {
-                errorElement.textContent = 'Passwords do not match';
-                errorElement.style.display = 'block';
-            } else {
-                errorElement.style.display = 'none';
-            }
-        });
+    <form id="registrationForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+      <div class="group">
 
-        // Email real-time validation
-        document.getElementById('email').addEventListener('input', function(e) {
-            const email = e.target.value;
-            const errorElement = document.getElementById('emailError');
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
-            if (!emailRegex.test(email)) {
-                errorElement.textContent = 'Please enter a valid email address';
-                errorElement.style.display = 'block';
-            } else {
-                errorElement.style.display = 'none';
-            }
-        });
+        <div class="input-group">
+          <input type="text" name="name" id="name" placeholder="Full name" required>
+          <div class="error-message" id="nameError"></div>
+        </div>
 
-    </script>
+        <div class="input-group">
+          <input type="email" name="email" id="email" placeholder="Email address" required>
+          <div class="error-message" id="emailError"></div>
+        </div>
+      </div>
+
+
+      <div class="input-group">
+        <input type="password" name="password" id="password" placeholder="Password" required>
+        <div class="error-message" id="passwordError"></div>
+        <div class="password-requirements">
+          Password requirements:
+          <ul>
+            <li id="length">At least 8 characters</li>
+            <li id="letter">At least one letter</li>
+            <li id="number">At least one number</li>
+            <li id="special">At least one special character</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <i class="fas fa-lock"></i>
+        <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm password" required>
+        <div class="error-message" id="confirmPasswordError"></div>
+      </div>
+
+      <button type="submit">Sign up</button>
+    </form>
+
+    <p class="login-link">
+      Already have an account? <a href="login.php">Log in</a>
+    </p>
+  </div>
+
+  <script>
+  document.getElementById('registrationForm').addEventListener('submit', function(e) {
+    let isValid = true;
+    const name = document.getElementById('name');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+
+    // Reset error messages
+    document.querySelectorAll('.error-message').forEach(elem => {
+      elem.style.display = 'none';
+    });
+
+    // Name validation
+    if (name.value.length < 2) {
+      document.getElementById('nameError').textContent = 'Name must be at least 2 characters long';
+      document.getElementById('nameError').style.display = 'block';
+      isValid = false;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.value)) {
+      document.getElementById('emailError').textContent = 'Please enter a valid email address';
+      document.getElementById('emailError').style.display = 'block';
+      isValid = false;
+    }
+
+
+    // Password validation
+    const hasLetter = /[a-zA-Z]/.test(password.value);
+    const hasNumber = /\d/.test(password.value);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password.value);
+    const isLongEnough = password.value.length >= 8;
+
+    document.getElementById('length').style.color = isLongEnough ? '#38a169' : '#717171';
+    document.getElementById('letter').style.color = hasLetter ? '#38a169' : '#717171';
+    document.getElementById('number').style.color = hasNumber ? '#38a169' : '#717171';
+    document.getElementById('special').style.color = hasSpecial ? '#38a169' : '#717171';
+
+    if (!isLongEnough || !hasLetter || !hasNumber || !hasSpecial) {
+      document.getElementById('passwordError').textContent = 'Password does not meet requirements';
+      document.getElementById('passwordError').style.display = 'block';
+      isValid = false;
+    }
+
+    // Confirm password validation
+    if (password.value !== confirmPassword.value) {
+      document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+      document.getElementById('confirmPasswordError').style.display = 'block';
+      isValid = false;
+    }
+
+    if (!isValid) {
+      e.preventDefault();
+    }
+  });
+
+  // Real-time password requirement checking
+  document.getElementById('password').addEventListener('input', function(e) {
+    const password = e.target.value;
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const isLongEnough = password.length >= 8;
+
+    document.getElementById('length').style.color = isLongEnough ? '#38a169' : '#717171';
+    document.getElementById('letter').style.color = hasLetter ? '#38a169' : '#717171';
+    document.getElementById('number').style.color = hasNumber ? '#38a169' : '#717171';
+    document.getElementById('special').style.color = hasSpecial ? '#38a169' : '#717171';
+  });
+
+  // Confirm password real-time validation
+  document.getElementById('confirm_password').addEventListener('input', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = e.target.value;
+    const errorElement = document.getElementById('confirmPasswordError');
+
+    if (password !== confirmPassword) {
+      errorElement.textContent = 'Passwords do not match';
+      errorElement.style.display = 'block';
+    } else {
+      errorElement.style.display = 'none';
+    }
+  });
+
+  // Email real-time validation
+  document.getElementById('email').addEventListener('input', function(e) {
+    const email = e.target.value;
+    const errorElement = document.getElementById('emailError');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      errorElement.textContent = 'Please enter a valid email address';
+      errorElement.style.display = 'block';
+    } else {
+      errorElement.style.display = 'none';
+    }
+  });
+  </script>
 </body>
+
 </html>

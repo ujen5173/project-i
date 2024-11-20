@@ -1,0 +1,233 @@
+header {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+}
+
+header nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+ul {
+  list-style: none;
+  display: flex;
+}
+
+ul li {
+  font-size: 1rem;
+  color: var(--foreground)
+}
+
+.left-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav__item a {
+  padding: 0.5rem 0.75rem;
+  color: var(--foreground);
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+.btns__wrapper {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  background-color: var(--primary);
+  cursor: pointer;
+  font-size: 1rem;
+  border: 1px solid var(--priamry);
+  border-radius: var(--radius);
+  color: var(--primary-foreground);
+}
+
+.btn:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn a {
+  all: unset;
+  color: var(--primary-foreground);
+}
+
+.user-menu {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-link {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.btn-link:hover {
+  background: transparent;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.btns__wrapper button a {
+  color: var(--background);
+}
+
+.btn-link a {
+  color: var(--foreground);
+}
+
+.nav__logo .logo {
+  color: var(--foreground);
+  font-family: "merriweather";
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+.room-detail-section {
+    padding-top: 100px;
+    padding-bottom: 30px;
+}
+
+.room-detail__wrapper {
+    display: flex;
+    gap: 2rem;
+}
+
+
+.room-info {
+    flex: 1;
+    padding: 0 1rem;
+}
+
+.room-title {
+    font-size: 2.25rem;
+    margin-bottom: 1rem;
+    font-family: "Merriweather";
+}
+
+.room-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.dot {
+    width: 4px;
+    height: 4px;
+    background-color: var(--foreground);
+    border-radius: 50%;
+}
+
+.rating_wrapper, .location, .room-type, .max-guests {
+    display: flex;
+    margin-bottom: 0;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.room-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+} 
+.amenities-wrappper {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.room-description, .room-amenities {
+    margin-bottom: 1.5rem;
+}
+
+.room-description h3, .room-amenities h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
+}
+
+.amenity-tag {
+    display: inline-block;
+    background-color: var(--background);
+    padding: 0.25rem 0.8rem;
+    margin-right: 0.5rem;
+    border: 1px solid #cbd5e1;
+    margin-bottom: 0.5rem;
+    border-radius: 999px;;
+}
+
+.booking-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    background-color: var(--background);
+    border-radius: var(--radius);
+}
+
+.booking-section .price {
+    font-size: 1.5rem;
+}
+
+.room-images {
+    display: flex;
+    gap: 10px;
+}
+
+.room-images__selections > div> img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius);
+}
+
+.room-images__selections > div {
+    width: 70px;
+    height: 70px;
+    border-radius: var(--radius);
+}
+
+.room-images__selections {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+.room-images__thumbnail {
+    flex: 1;}
+    
+    .room-images { 
+    flex: 1.5;
+} 
+
+    
+.room-images_thumbnail img {
+    width: 100%;
+    aspect-ratio: 16/11;
+    object-fit: cover;
+    border-radius: var(--radius);
+}
+
+
+.room-detail-wrapper {
+    display: flex;
+    gap: 10px;
+} 

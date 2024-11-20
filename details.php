@@ -1,26 +1,47 @@
 <?php
-
-// header.php
 session_start();
 require_once __DIR__ . '/db/config.php';
 
-// Function to get user details
-function getUserDetails($conn, $user_id) {
-    $stmt = $conn->prepare("SELECT name, email FROM users WHERE id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    return $result->fetch_assoc();
-}
+// // Fetch room details (assuming room ID is passed via GET)
+// $room_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+// $stmt = $conn->prepare("SELECT * FROM rooms WHERE id = ?");
+// $stmt->bind_param("i", $room_id);
+// $stmt->execute();
+// $room = $stmt->get_result()->fetch_assoc();
+
+// echo $room;
+
+// if (!$room) {
+//     // Redirect or show error if room not found
+//     header("Location: index.php");
+//     exit();
+// }
 
 // Check if user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
 $userDetails = null;
 
+$room = [
+    'id' => 1,
+    'title' => 'Luxury Villa',
+    'rating' => 4.5,
+    'total_reviews' => 12,
+    'location' => 'Bali, Indonesia',
+    'room_type' => 'Entire Villa',
+    'max_guests' => 6,
+    'description' => 'A beautiful villa with a private pool and ocean view.',
+    'amenities' => '["Free parking", "Wi-Fi", "Air conditioning", "Pool", "Kitchen", "Breakfast"]',
+    'images' => '["room-1.webp", "room-2.webp", "room-3.webp"]',
+    'price' => 250.00,
+];
+
+
 if ($isLoggedIn) {
-    $userDetails = getUserDetails($conn, $_SESSION['user_id']);
+    $stmt = $conn->prepare("SELECT name, email FROM users WHERE id = ?");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $userDetails = $stmt->get_result()->fetch_assoc();
 }
- 
 ?>
 
 <!DOCTYPE html>
@@ -29,29 +50,15 @@ if ($isLoggedIn) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Lato Font -->
+  <title><?php echo htmlspecialchars($room['title']); ?> - StayHaven</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font Links (from index.php) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:wght@400;700&display=swap"
     rel="stylesheet">
-
-  <!-- Merriweather -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
-    rel="stylesheet">
-
-  <!-- Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
-    rel="stylesheet">
-
-
-  <title>Document</title>
 
   <!-- Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -59,13 +66,15 @@ if ($isLoggedIn) {
   <!-- CSS -->
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/index.css">
-
+  <link rel="stylesheet" href="css/room-detail.css">
 </head>
 
 <body>
   <header class="header">
     <nav class="nav container">
+      <!-- Navigation from index.php -->
       <div class="left-nav">
+
         <div class="nav__logo">
           <a href="/index.php">
             <h1 class="logo">StayHaven</h1>
@@ -85,12 +94,14 @@ if ($isLoggedIn) {
             <a href="#" class="nav__link">Contact</a>
           </li>
         </ul>
+        </ul>
       </div>
+
       <?php if ($isLoggedIn): ?>
       <div class="user-menu" style="display: flex; gap: 1rem; align-items: center" id="userMenu">
         <div class="user-avatar">
           <?php if ($userDetails['name']): ?>
-          <p style="color: white;">
+          <p style="color: #111;">
             Logged in as <?php echo $userDetails['name']; ?>
           </p>
           <?php endif; ?>
@@ -101,7 +112,7 @@ if ($isLoggedIn) {
 
       <div class="btns__wrapper">
         <a href="/stayhaven/login.php">
-          <button style="color: white;" class="btn btn-link">
+          <button style="color: #111;" class="btn btn-link">
             Login / Sign in
           </button>
         </a>
@@ -116,177 +127,101 @@ if ($isLoggedIn) {
     </nav>
   </header>
 
-  <main class="hero-section">
-    <div class="hero-section__wrapper container">
-      <div class="overlay"></div>
-      <div class="hero-section-content">
-        <h1 class="hero-section__title">
-          Discover Your Perfect Stay, <br /> Anywhere, Anytime
-        </h1>
-        <p class="hero-section__description">
-          Explore unique accommodations around the world, tailored to your style and budget. <br /> Book with ease, stay
-          with
-          joy.
-        </p>
+  <main class="room-detail-section">
+    <div class="room-detail__wrapper container">
+      <div class="room-detail-wrapper">
 
-        <div class="booking-form">
-          <div>
-            <label for="check-in">Check in</label>
-            <input type="date" id="check-in" placeholder="11-17-2024">
+        <div class="room-images">
+          <div class="room-images__selections">
+            <div class="room-images-selection-img">
+              <img src="images/room-1.webp" alt="">
+            </div>
+            <div class="room-images-selection-img">
+              <img src="images/room-2.webp" alt="">
+            </div>
+            <div class="room-images-selection-img">
+              <img src="images/room-3.webp" alt="">
+            </div>
+            <div class="room-images-selection-img">
+              <img src="images/room-4.webp" alt="">
+            </div>
           </div>
-          <div>
-            <label for="check-out">Check out</label>
-            <input type="date" id="check-out" placeholder="11-20-2024">
+          <div class="room-images_thumbnail">
+            <img src="images/room-1.webp" alt="">
           </div>
-          <div>
-            <label for="guests">Guests</label>
-            <input type="number" id="guests" min="1" max="10" style="width: 100%;" placeholder="4 person">
+        </div>
+
+        <div class="room-info">
+          <h1 class="room-title"><?php echo htmlspecialchars($room['title']); ?></h1>
+
+          <div class="room-meta">
+            <div class="rating_wrapper">
+              <i style="width: 18px; height: 18px;" data-lucide="star"></i>
+              <span><?php echo number_format($room['rating'], 1); ?> (<?php echo $room['total_reviews']; ?>
+                reviews)</span>
+            </div>
+            <span class="dot"></span>
+            <div class="location">
+              <i style="width: 18px; height: 18px;" data-lucide="map-pin"></i>
+              <?php echo htmlspecialchars($room['location']); ?>
+            </div>
           </div>
-          <button class="btn">Search</button>
+
+          <div class="room-details">
+            <div class="room-type">
+              <i style="width: 18px; height: 18px;" data-lucide="home"></i>
+              <?php echo htmlspecialchars($room['room_type']); ?>
+            </div>
+            <span class="dot"></span>
+            <div class="max-guests">
+              <i style="width: 18px; height: 18px;" data-lucide="users"></i>
+              Max <?php echo $room['max_guests']; ?> guests
+            </div>
+          </div>
+
+          <div class="room-description">
+            <h3>About this place</h3>
+            <p><?php echo htmlspecialchars($room['description']); ?></p>
+          </div>
+
+          <div class="room-amenities">
+            <h3>Amenities</h3>
+
+            <div class="amenities-wrappper">
+
+              <?php 
+                    $amenities = json_decode($room['amenities'], true);
+                    foreach ($amenities as $amenity): 
+                      ?>
+              <span class="amenity-tag"><?php echo htmlspecialchars($amenity); ?></span>
+              <?php endforeach; ?>
+            </div>
+          </div>
+
+          <div class="booking-section mb-4">
+            <div class="price">
+              <strong>$<?php echo number_format($room['price'], 2); ?></strong> per night
+            </div>
+            <button class="btn btn-primary">Book Now</button>
+          </div>
+
+          <div class="flex gap-2">
+            <Button
+              class="w-full px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 py-2 rounded-md border border-slate-300">Add
+              to favourites
+            </Button>
+            <Button
+              class="w-full px-4 bg-white hover:bg-slate-100 text-slate-800 py-2 rounded-md border border-slate-300">Share</Button>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
-  <section class="most-popular-hotels">
-    <div class="most-popular-hotels__wrapper container">
-      <h1 class="most-popular-hotels__title">
-        Explore the Most Popular Hotels
-      </h1>
-
-      <div class="most-popular-hotels__list">
-        <div class="most-popular-hotel">
-          <div class="most-popular-hotel__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/470770143.webp?k=299ef4606678b9b2afdefef73f9fe68cb18226098bfb5439d1265f392b32d6b5&o="
-              alt="Hotel 1">
-          </div>
-          <div class="most-popular-hotel__content">
-            <h1 class="most-popular-hotel__title">
-              Himalayan Hotel
-            </h1>
-            <p class="hotel-location">
-              Pokhara, Nepal
-            </p>
-            <div class="rating_wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-star">
-                <path
-                  d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-              </svg>
-              <span>
-                4.5 (500+)
-              </span>
-            </div>
-            <div class="price">
-              <strong>
-                $50
-              </strong> night
-            </div>
-          </div>
-        </div>
-        <div class="most-popular-hotel">
-          <div class="most-popular-hotel__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/329596525.webp?k=8438bdd1e1023770c3499dfc44667f2665da4355da811d0a244ed6fb0a18fc93&o="
-              alt="Hotel 1">
-          </div>
-          <div class="most-popular-hotel__content">
-            <h1 class="most-popular-hotel__title">
-              Holiday Spot
-            </h1>
-            <p class="hotel-location">
-              Budhanikantha, Nepal
-            </p>
-            <div class="rating_wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-star">
-                <path
-                  d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-              </svg>
-              <span>
-                4.3 (1600+)
-              </span>
-            </div>
-            <div class="price">
-              <strong>
-                $500
-              </strong> night
-            </div>
-          </div>
-        </div>
-        <div class="most-popular-hotel">
-          <div class="most-popular-hotel__img">
-            <img
-              src="https://a0.muscache.com/im/pictures/hosting/Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTI4NzU3MTgwMzg2NDk2OTQxMw%3D%3D/original/02ea369e-50f3-4461-a68c-3556cb35aff7.jpeg?im_w=720"
-              alt="Hotel 1">
-          </div>
-          <div class="most-popular-hotel__content">
-            <h1 class="most-popular-hotel__title">
-              Aparthotel Stare Miasto
-            </h1>
-            <p class="hotel-location">
-              Old Town, Poland, Krakow
-            </p>
-            <div class="rating_wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-star">
-                <path
-                  d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-              </svg>
-              <span>
-                4.4 (3000+)
-              </span>
-            </div>
-            <div class="price">
-              <strong>
-                $17
-              </strong> night
-            </div>
-          </div>
-        </div>
-        <div class="most-popular-hotel">
-          <div class="most-popular-hotel__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/483812425.webp?k=f4a1e128538c8c9450775de46a668c6d72bd8ee4230d8eabf7c4b2a2b7a147c6&o="
-              alt="Hotel 1">
-          </div>
-          <div class="most-popular-hotel__content">
-            <h1 class="most-popular-hotel__title">
-              Himalayan Hotel
-            </h1>
-            <p class="hotel-location">
-              Pokhara, Nepal
-            </p>
-            <div class="rating_wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-star">
-                <path
-                  d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-              </svg>
-              <span>
-                4.5 (500+)
-              </span>
-            </div>
-            <div class="price">
-              <strong>
-                $50
-              </strong> night
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="latest-listings-stds">
     <div class="latest-listings-stds__wrapper container">
       <h1 class="latest-listings-stds__title">
-        Latest Listings for Students
+        Similar Listings
       </h1>
 
       <div class="latest-listings-stds__list">
@@ -562,26 +497,11 @@ if ($isLoggedIn) {
       </p>
     </div>
   </footer>
+
+
+  <script>
+  lucide.createIcons();
+  </script>
 </body>
-
-<script>
-// Toggle dropdown menu
-const userMenu = document.getElementById('userMenu');
-const dropdownMenu = document.getElementById('dropdownMenu');
-
-if (userMenu) {
-  userMenu.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdownMenu.classList.toggle('active');
-  });
-
-  // Close dropdown when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!userMenu.contains(e.target)) {
-      dropdownMenu.classList.remove('active');
-    }
-  });
-}
-</script>
 
 </html>
