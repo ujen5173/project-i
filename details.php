@@ -2,45 +2,30 @@
 session_start();
 require_once __DIR__ . '/db/config.php';
 
-// // Fetch room details (assuming room ID is passed via GET)
-// $room_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-// $stmt = $conn->prepare("SELECT * FROM rooms WHERE id = ?");
-// $stmt->bind_param("i", $room_id);
-// $stmt->execute();
-// $room = $stmt->get_result()->fetch_assoc();
+// Fetch room details
+$room_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$stmt = $conn->prepare("SELECT * FROM listings WHERE id = ? ");
+$stmt->bind_param("i", $room_id);
+$stmt->execute();
+$room = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
-// echo $room;
-
-// if (!$room) {
-//     // Redirect or show error if room not found
-//     header("Location: index.php");
-//     exit();
-// }
+if (!$room) {
+    // Redirect or show error if room not found
+    header("Location: index.php");
+    exit();
+}
 
 // Check if user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
 $userDetails = null;
-
-$room = [
-    'id' => 1,
-    'title' => 'Luxury Villa',
-    'rating' => 4.5,
-    'total_reviews' => 12,
-    'location' => 'Bali, Indonesia',
-    'room_type' => 'Entire Villa',
-    'max_guests' => 6,
-    'description' => 'A beautiful villa with a private pool and ocean view.',
-    'amenities' => '["Free parking", "Wi-Fi", "Air conditioning", "Pool", "Kitchen", "Breakfast"]',
-    'images' => '["room-1.webp", "room-2.webp", "room-3.webp"]',
-    'price' => 250.00,
-];
-
 
 if ($isLoggedIn) {
     $stmt = $conn->prepare("SELECT name, email FROM users WHERE id = ?");
     $stmt->bind_param("i", $_SESSION['user_id']);
     $stmt->execute();
     $userDetails = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 }
 ?>
 
@@ -130,24 +115,11 @@ if ($isLoggedIn) {
   <main class="room-detail-section">
     <div class="room-detail__wrapper container">
       <div class="room-detail-wrapper">
-
         <div class="room-images">
-          <div class="room-images__selections">
-            <div class="room-images-selection-img">
-              <img src="images/room-1.webp" alt="">
-            </div>
-            <div class="room-images-selection-img">
-              <img src="images/room-2.webp" alt="">
-            </div>
-            <div class="room-images-selection-img">
-              <img src="images/room-3.webp" alt="">
-            </div>
-            <div class="room-images-selection-img">
-              <img src="images/room-4.webp" alt="">
-            </div>
-          </div>
+          <!-- You may need to implement a gallery here based on your image storage system -->
           <div class="room-images_thumbnail">
-            <img src="images/room-1.webp" alt="">
+            <img src="/stayHaven<?php echo htmlspecialchars($room['image_url']); ?>"
+              alt="<?php echo htmlspecialchars($room['title']); ?>">
           </div>
         </div>
 
@@ -155,12 +127,8 @@ if ($isLoggedIn) {
           <h1 class="room-title"><?php echo htmlspecialchars($room['title']); ?></h1>
 
           <div class="room-meta">
-            <div class="rating_wrapper">
-              <i style="width: 18px; height: 18px;" data-lucide="star"></i>
-              <span><?php echo number_format($room['rating'], 1); ?> (<?php echo $room['total_reviews']; ?>
-                reviews)</span>
-            </div>
-            <span class="dot"></span>
+
+            <!-- <span class="dot"></span> -->
             <div class="location">
               <i style="width: 18px; height: 18px;" data-lucide="map-pin"></i>
               <?php echo htmlspecialchars($room['location']); ?>
@@ -186,13 +154,11 @@ if ($isLoggedIn) {
 
           <div class="room-amenities">
             <h3>Amenities</h3>
-
-            <div class="amenities-wrappper">
-
+            <div class="amenities-wrapper">
               <?php 
-                    $amenities = json_decode($room['amenities'], true);
-                    foreach ($amenities as $amenity): 
-                      ?>
+                            $amenities = json_decode($room['amenities'], true);
+                            foreach ($amenities as $amenity): 
+                            ?>
               <span class="amenity-tag"><?php echo htmlspecialchars($amenity); ?></span>
               <?php endforeach; ?>
             </div>
@@ -206,12 +172,14 @@ if ($isLoggedIn) {
           </div>
 
           <div class="flex gap-2">
-            <Button
-              class="w-full px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 py-2 rounded-md border border-slate-300">Add
-              to favourites
-            </Button>
-            <Button
-              class="w-full px-4 bg-white hover:bg-slate-100 text-slate-800 py-2 rounded-md border border-slate-300">Share</Button>
+            <button
+              class="w-full px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 py-2 rounded-md border border-slate-300">
+              Add to favourites
+            </button>
+            <button
+              class="w-full px-4 bg-white hover:bg-slate-100 text-slate-800 py-2 rounded-md border border-slate-300">
+              Share
+            </button>
           </div>
         </div>
       </div>

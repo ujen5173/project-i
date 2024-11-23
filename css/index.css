@@ -37,64 +37,30 @@ ul li {
 a:hover {
   text-decoration: none;
 }
-
-.btns__wrapper {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  background-color: var(--primary);
-  cursor: pointer;
-  font-size: 1rem;
-  border: 1px solid var(--priamry);
-  border-radius: var(--radius);
-  color: var(--primary-foreground);
-}
-
-.btn:hover {
-  background-color: var(--primary-hover);
-}
-
-.btn a {
-  all: unset;
-  color: var(--primary-foreground);
-}
-
-.user-menu {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-link {
-  background: transparent;
-  color: var(--foreground);
-}
-
-.btn-link:hover {
-  background: transparent;
-}
-
-.btn-link:hover {
-  text-decoration: underline;
-}
-
-.btns__wrapper button a {
-  color: var(--background);
-}
-
-.btn-link a {
-  color: var(--foreground);
-}
-
 .nav__logo .logo {
   color: var(--background);
   font-family: "merriweather";
   font-size: 1.5rem;
   font-weight: 600;
   
+}
+ 
+
+.featured-listings__wrapper {
+  padding: 40px 20px;
+}
+ 
+
+.featured-listings__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.featured-listing__img  img {
+  aspect-ratio: 16/11;
+  width: 100%;
+  border-radius: var(--radius);
 }
 
 .btn-sm {
@@ -248,34 +214,31 @@ a:hover {
 }
 
 /* Listings for students */
+ 
 
-.latest-listings-stds {
-  padding: 3rem 0;
-}
-
-.latest-listings-stds__title {
+.featured-listing__title {
   font-size: 1.75rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
 }
 
-.latest-listings-stds__list {
+.featured-listing__list {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.latest-listings-stds__img {
+.featured-listing__img {
   margin-bottom: 0.75rem;
 }
 
-.latest-listings-stds__img img {
+.featured-listing__img img {
   aspect-ratio: 16/11;
   width: 100%;
   border-radius: var(--radius);
 }
 
-.latest-listings-stds__card__title {
+.featured-listing__card__title {
   margin-bottom: 0.5rem;
   font-weight: 600;
   font-size: 1.25rem;
