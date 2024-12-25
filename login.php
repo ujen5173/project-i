@@ -26,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['user_role'] = $user['role'];
                 
                 if ($user['role'] === 'host') {
-                    header("Location: host_dashboard.php");
+                    header("Location: host_dashboard/index.php");
                 } else {
                     header("Location: index.php");
                 }
@@ -42,55 +42,58 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - StaySpot</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/login.css">
-    <!-- Include your font links here -->
-</head>
-<body>
-    <div class="container">
-        <a href="/stayhaven">
-            <h1 class="logo">StayHaven</h1>
-        </a>
+ <!DOCTYPE html>
+ <html lang="en">
 
-        <?php if ($error): ?>
-            <div class="server-error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
+ <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Login - StaySpot</title>
+   <link rel="stylesheet" href="css/styles.css">
+   <link rel="stylesheet" href="css/login.css">
+   <!-- Include your font links here -->
+ </head>
 
-        <h1>Welcome back</h1>
+ <body>
+   <div class="container">
+     <a href="/stayhaven">
+       <h1 class="logo">StayHaven</h1>
+     </a>
 
-        <form id="loginForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
-            <div class="input-group">
-                <label for="email">Email address</label>
-                <input type="email" name="email" id="email" placeholder="Email address" required>
-                <div class="error-message" id="emailError"></div>
-            </div>
+     <?php if ($error): ?>
+     <div class="server-error"><?php echo htmlspecialchars($error); ?></div>
+     <?php endif; ?>
 
-            <div class="input-group">
-                <label for="password">Password</label>
-                <input type="password" name="password" id="password" placeholder="Password" required>
-                <div class="error-message" id="passwordError"></div>
-            </div>
+     <h1>Welcome back</h1>
 
-            <p class="forgot-password">
-                <a href="reset-password.php">Forgot password?</a>
-            </p>
+     <form id="loginForm" method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+       <div class="input-group">
+         <label for="email">Email address</label>
+         <input type="email" name="email" id="email" placeholder="Email address" required>
+         <div class="error-message" id="emailError"></div>
+       </div>
 
-            <button type="submit">Log in</button>
-        </form>
+       <div class="input-group">
+         <label for="password">Password</label>
+         <input type="password" name="password" id="password" placeholder="Password" required>
+         <div class="error-message" id="passwordError"></div>
+       </div>
 
-        <p class="signup-link">
-            Don't have an account? <a href="signup.php">Sign up</a>
-        </p>
-    </div>
+       <p class="forgot-password">
+         <a href="reset-password.php">Forgot password?</a>
+       </p>
 
-    <script>
-        // Add your client-side validation script here
-    </script>
-</body>
-</html>
+       <button type="submit">Log in</button>
+     </form>
+
+     <p class="signup-link">
+       Don't have an account? <a href="signup.php">Sign up</a>
+     </p>
+   </div>
+
+   <script>
+   // Add your client-side validation script here
+   </script>
+ </body>
+
+ </html>

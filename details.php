@@ -4,7 +4,13 @@ require_once __DIR__ . '/db/config.php';
 
 // Fetch room details
 $room_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$stmt = $conn->prepare("SELECT * FROM listings WHERE id = ? ");
+$stmt = $conn->prepare("SELECT l.*, 
+    GROUP_CONCAT(a.name) as amenities 
+    FROM listings l
+    LEFT JOIN listing_amenities la ON l.id = la.listing_id
+    LEFT JOIN amenities a ON la.amenity_id = a.id
+    WHERE l.id = ?
+    GROUP BY l.id");
 $stmt->bind_param("i", $room_id);
 $stmt->execute();
 $room = $stmt->get_result()->fetch_assoc();
@@ -27,6 +33,39 @@ if ($isLoggedIn) {
     $userDetails = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 }
+
+
+// Fetch featured listings
+$stmt = $conn->prepare("SELECT DISTINCT l.*,
+    (
+        SELECT COUNT(*) FROM listing_amenities la 
+        WHERE la.listing_id = l.id AND la.amenity_id IN (
+            SELECT amenity_id FROM listing_amenities 
+            WHERE listing_id = ?)
+    ) as matching_amenities
+FROM listings l
+WHERE l.id != ? -- Exclude current listing
+AND l.room_type = (SELECT room_type FROM listings WHERE id = ?)
+AND l.max_guests >= (SELECT max_guests FROM listings WHERE id = ?)
+AND l.price BETWEEN (
+    SELECT price * 0.8 FROM listings WHERE id = ?
+) AND (
+    SELECT price * 1.2 FROM listings WHERE id = ?
+)
+ORDER BY matching_amenities DESC, l.price
+LIMIT 4;");
+$stmt->bind_param("iiiiii", 
+  $room_id, 
+  $room_id,
+  $room_id,
+  $room_id,
+  $room_id,
+  $room_id
+);
+$stmt->execute();
+$similarListings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
 ?>
 
 <!DOCTYPE html>
@@ -57,11 +96,9 @@ if ($isLoggedIn) {
 <body>
   <header class="header">
     <nav class="nav container">
-      <!-- Navigation from index.php -->
       <div class="left-nav">
-
         <div class="nav__logo">
-          <a href="/index.php">
+          <a href="/stayHaven/index.php">
             <h1 class="logo">StayHaven</h1>
           </a>
         </div>
@@ -91,7 +128,9 @@ if ($isLoggedIn) {
           </p>
           <?php endif; ?>
         </div>
-        <button class="btn btn-sm">Logout</button>
+        <a href="logout.php">
+          <button class="btn btn-sm">Logout</button>
+        </a>
       </div>
       <?php else: ?>
 
@@ -156,11 +195,14 @@ if ($isLoggedIn) {
             <h3>Amenities</h3>
             <div class="amenities-wrapper">
               <?php 
-                            $amenities = json_decode($room['amenities'], true);
-                            foreach ($amenities as $amenity): 
-                            ?>
+    $amenities = $room['amenities'] ? explode(',', $room['amenities']) : [];
+    if (empty($amenities)): ?>
+              <p>No amenities available</p>
+              <?php else:
+      foreach ($amenities as $amenity): ?>
               <span class="amenity-tag"><?php echo htmlspecialchars($amenity); ?></span>
-              <?php endforeach; ?>
+              <?php endforeach;
+    endif; ?>
             </div>
           </div>
 
@@ -172,11 +214,12 @@ if ($isLoggedIn) {
           </div>
 
           <div class="flex gap-2">
-            <button
-              class="w-full px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 py-2 rounded-md border border-slate-300">
+            <button data-room-id="<?php echo $room_id; ?>"
+              class="w-full px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 py-2 rounded-md border border-slate-300"
+              onclick="addToFavorites(this)">
               Add to favourites
             </button>
-            <button
+            <button onclick="copyToClipboard()"
               class="w-full px-4 bg-white hover:bg-slate-100 text-slate-800 py-2 rounded-md border border-slate-300">
               Share
             </button>
@@ -188,231 +231,43 @@ if ($isLoggedIn) {
 
   <section class="latest-listings-stds">
     <div class="latest-listings-stds__wrapper container">
-      <h1 class="latest-listings-stds__title">
+      <h1 class="featured-listings__title">
         Similar Listings
       </h1>
-
-      <div class="latest-listings-stds__list">
-        <div class="latest-listings-stds__card">
-          <div class="latest-listings-stds__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/483812425.webp?k=f4a1e128538c8c9450775de46a668c6d72bd8ee4230d8eabf7c4b2a2b7a147c6&o="
-              alt="Hotel 1">
+      <div class="featured-listings__list grid grid-cols-4 gap-4">
+        <?php foreach ($similarListings as $listing): ?>
+        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>" class="featured-listing">
+          <div class="featured-listing__img">
+            <?php if ($listing['image_url']): ?>
+            <img src="/stayHaven/<?php echo htmlspecialchars($listing['image_url']); ?>"
+              alt="<?php echo htmlspecialchars($listing['title']); ?>" class="w-full h-full object-cover">
+            <?php else: ?>
+            <img src="https://via.placeholder.com/300" alt="Placeholder image" class="w-full h-full object-cover">
+            <?php endif; ?>
           </div>
-          <div class="latest-listings-stds__content">
-            <h1 class="latest-listings-stds__card__title">
-              Pokhara, Nepal
-            </h1>
-
-            <div class="flex_wrapper">
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-hotel">
-                  <path d="M10 22v-6.57" />
-                  <path d="M12 11h.01" />
-                  <path d="M12 7h.01" />
-                  <path d="M14 15.43V22" />
-                  <path d="M15 16a5 5 0 0 0-6 0" />
-                  <path d="M16 11h.01" />
-                  <path d="M16 7h.01" />
-                  <path d="M8 11h.01" />
-                  <path d="M8 7h.01" />
-                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                </svg> <span>
-                  Hostel
-                </span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          <div class="featured-listing__content">
+            <h2 class="featured-listing__title">
+              <?php echo htmlspecialchars($listing['title']); ?>
+            </h2>
+            <p class="listing-location" style="display: flex; align-items:center; gap: 6px; margin-bottom: 15px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-dot">
-                <circle cx="12.1" cy="12.1" r="1" />
+                class="lucide lucide-map-pin-check">
+                <path
+                  d="M19.43 12.935c.357-.967.57-1.955.57-2.935a8 8 0 0 0-16 0c0 4.993 5.539 10.193 7.399 11.799a1 1 0 0 0 1.202 0 32.197 32.197 0 0 0 .813-.728" />
+                <circle cx="12" cy="10" r="3" />
+                <path d="m16 18 2 2 4-4" />
               </svg>
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-users">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                20
-                </span>
-              </div>
-            </div>
-            <div class="price">
+              <?php echo htmlspecialchars($listing['location']); ?>
+            </p>
+            <div class=" price">
               <strong>
-                $50
-              </strong> per month
+                $<?php echo number_format($listing['price'], 2); ?>
+              </strong> per night
             </div>
           </div>
-        </div>
-        <div class="latest-listings-stds__card">
-          <div class="latest-listings-stds__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/483812425.webp?k=f4a1e128538c8c9450775de46a668c6d72bd8ee4230d8eabf7c4b2a2b7a147c6&o="
-              alt="Hotel 1">
-          </div>
-          <div class="latest-listings-stds__content">
-            <h1 class="latest-listings-stds__card__title">
-              Balkumari, Lalitpur
-            </h1>
-
-            <div class="flex_wrapper">
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-hotel">
-                  <path d="M10 22v-6.57" />
-                  <path d="M12 11h.01" />
-                  <path d="M12 7h.01" />
-                  <path d="M14 15.43V22" />
-                  <path d="M15 16a5 5 0 0 0-6 0" />
-                  <path d="M16 11h.01" />
-                  <path d="M16 7h.01" />
-                  <path d="M8 11h.01" />
-                  <path d="M8 7h.01" />
-                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                </svg> <span>
-                  Room
-                </span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-dot">
-                <circle cx="12.1" cy="12.1" r="1" />
-              </svg>
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-users">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                2
-                </span>
-              </div>
-            </div>
-            <div class="price">
-              <strong>
-                $73
-              </strong> per month
-            </div>
-          </div>
-        </div>
-        <div class="latest-listings-stds__card">
-          <div class="latest-listings-stds__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/483812425.webp?k=f4a1e128538c8c9450775de46a668c6d72bd8ee4230d8eabf7c4b2a2b7a147c6&o="
-              alt="Hotel 1">
-          </div>
-          <div class="latest-listings-stds__content">
-            <h1 class="latest-listings-stds__card__title">
-              Pokhara, Nepal
-            </h1>
-
-            <div class="flex_wrapper">
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-hotel">
-                  <path d="M10 22v-6.57" />
-                  <path d="M12 11h.01" />
-                  <path d="M12 7h.01" />
-                  <path d="M14 15.43V22" />
-                  <path d="M15 16a5 5 0 0 0-6 0" />
-                  <path d="M16 11h.01" />
-                  <path d="M16 7h.01" />
-                  <path d="M8 11h.01" />
-                  <path d="M8 7h.01" />
-                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                </svg> <span>
-                  Room
-                </span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-dot">
-                <circle cx="12.1" cy="12.1" r="1" />
-              </svg>
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-users">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                3
-                </span>
-              </div>
-            </div>
-            <div class="price">
-              <strong>
-                $20
-              </strong> per month
-            </div>
-          </div>
-        </div>
-        <div class="latest-listings-stds__card">
-          <div class="latest-listings-stds__img">
-            <img
-              src="https://cf.bstatic.com/xdata/images/hotel/square600/483812425.webp?k=f4a1e128538c8c9450775de46a668c6d72bd8ee4230d8eabf7c4b2a2b7a147c6&o="
-              alt="Hotel 1">
-          </div>
-          <div class="latest-listings-stds__content">
-            <h1 class="latest-listings-stds__card__title">
-              Pokhara, Nepal
-            </h1>
-
-            <div class="flex_wrapper">
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-hotel">
-                  <path d="M10 22v-6.57" />
-                  <path d="M12 11h.01" />
-                  <path d="M12 7h.01" />
-                  <path d="M14 15.43V22" />
-                  <path d="M15 16a5 5 0 0 0-6 0" />
-                  <path d="M16 11h.01" />
-                  <path d="M16 7h.01" />
-                  <path d="M8 11h.01" />
-                  <path d="M8 7h.01" />
-                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                </svg> <span>
-                  Room
-                </span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-dot">
-                <circle cx="12.1" cy="12.1" r="1" />
-              </svg>
-              <div class="rating_wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="lucide lucide-users">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                1
-                </span>
-              </div>
-            </div>
-            <div class="price">
-              <strong>
-                $105
-              </strong> per month
-            </div>
-          </div>
-        </div>
+        </a>
+        <?php endforeach; ?>
       </div>
     </div>
   </section>
@@ -466,6 +321,41 @@ if ($isLoggedIn) {
     </div>
   </footer>
 
+  <script>
+  function copyToClipboard() {
+    // get the link to the current page
+    const link = window.location.href;
+    navigator.clipboard.writeText(link).then(() => {
+      alert('Link copied to clipboard');
+    }).catch((err) => {
+      console.error('Failed to copy: ', err);
+    });
+  }
+
+  function addToFavorites(button) {
+    // Get room_id from the button's data attribute
+    const roomId = button.getAttribute('data-room-id');
+
+    // Get existing favorites from localStorage
+    let favorites = JSON.parse(localStorage.getItem('favoriteRooms')) || [];
+
+    // Check if room is already in favorites
+    if (!favorites.includes(roomId)) {
+      // Add room_id to favorites array
+      favorites.push(roomId);
+
+      // Save updated favorites back to localStorage
+      localStorage.setItem('favoriteRooms', JSON.stringify(favorites));
+
+      // Optional: Change button text/style to show it's favorited
+      button.textContent = 'Added to favourites';
+      button.classList.add('bg-slate-200');
+    } else {
+      // Optional: Alert if already in favorites
+      alert('This room is already in your favorites!');
+    }
+  }
+  </script>
 
   <script>
   lucide.createIcons();

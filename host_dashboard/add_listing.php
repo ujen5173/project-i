@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 require_once '../db/config.php';
 
@@ -11,58 +12,130 @@ $error = '';
 $success = '';
 $upload_dir = '../uploads/listings/';
 
+if (isset($_GET['edit']) && $_GET['edit'] === 'true' && isset($_GET['id'])) {
+    $listing_id = $_GET['id'];
+    $stmt = $conn->prepare("SELECT * FROM listings WHERE id = ? AND host_id = ?");
+    $stmt->bind_param("ii", $listing_id, $_SESSION['user_id']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $listing = $result->fetch_assoc();
+
+    if (!$listing) {
+        header("Location: index.php");
+        exit();
+    }
+
+    // Fetch amenities
+    $amenityStmt = $conn->prepare("SELECT amenity_id FROM listing_amenities WHERE listing_id = ?");
+    $amenityStmt->bind_param("i", $listing_id);
+    $amenityStmt->execute();
+    $amenityResult = $amenityStmt->get_result();
+    $amenities = [];
+    while ($row = $amenityResult->fetch_assoc()) {
+        $amenities[] = $row['amenity_id'];
+    }
+    $listing['amenities'] = implode(',', $amenities);
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $image_url = null;
+    $image_url = isset($_POST['current_image']) ? $_POST['current_image'] : null;
     
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $file_type = $_FILES['image']['type'];
-        $file_size = $_FILES['image']['size'];
-        
         if (in_array($file_type, ['image/jpeg', 'image/png', 'image/jpg'])) {
             $file_extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
             $unique_filename = uniqid('listing_') . '.' . $file_extension;
             $upload_path = $upload_dir . $unique_filename;
             
             if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_path)) {
+                if (!empty($_POST['current_image'])) {
+                    $old_image_path = $_SERVER['DOCUMENT_ROOT'] . $_POST['current_image'];
+                    if (file_exists($old_image_path)) {
+                        unlink($old_image_path);
+                    }
+                }
                 $image_url = '/uploads/listings/' . $unique_filename;
             }
         }
     }
     
-    $sql = "INSERT INTO listings (host_id, title, description, room_type, max_guests, price, location, image_url) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("isssidss", 
-        $_SESSION['user_id'],
-        $_POST['title'],
-        $_POST['description'],
-        $_POST['room_type'],
-        $_POST['max_guests'],
-        $_POST['price'],
-        $_POST['location'],
-        $image_url
-    );
-    
-    if ($stmt->execute()) {
-        $listingId = $stmt->insert_id;
+    if (isset($_GET['edit']) && $_GET['edit'] === 'true') {
+        $sql = "UPDATE listings SET title=?, description=?, room_type=?, max_guests=?, price=?, location=?, image_url=? 
+                WHERE id=? AND host_id=?";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssidssis", 
+            $_POST['title'],
+            $_POST['description'],
+            $_POST['room_type'],
+            $_POST['max_guests'],
+            $_POST['price'],
+            $_POST['location'],
+            $image_url,
+            $_GET['id'],
+            $_SESSION['user_id']
+        );
         
-        if (!empty($_POST['amenities'])) {
-            $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
-            foreach (array_filter(explode(',', $_POST['amenities'])) as $amenityId) {
-                if (is_numeric($amenityId)) {
-                    $amenityStmt->bind_param("ii", $listingId, $amenityId);
-                    $amenityStmt->execute();
+        if ($stmt->execute()) {
+            // Update amenities
+            $stmt = $conn->prepare("DELETE FROM listing_amenities WHERE listing_id = ?");
+            $stmt->bind_param("i", $_GET['id']);
+            $stmt->execute();
+            
+            if (!empty($_POST['amenities'])) {
+                $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
+                foreach (array_filter(explode(',', $_POST['amenities'])) as $amenityId) {
+                    if (is_numeric($amenityId)) {
+                        $amenityStmt->bind_param("ii", $_GET['id'], $amenityId);
+                        $amenityStmt->execute();
+                    }
                 }
             }
+            
+            header("Location: index.php");
+            exit();
+        } else {
+            $error = "Error updating listing";
         }
-        
-        $success = "Listing added successfully!";
     } else {
-        $error = "Error creating listing";
+        // Original add listing code...
+        $sql = "INSERT INTO listings (host_id, title, description, room_type, max_guests, price, location, image_url) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("isssidss", 
+            $_SESSION['user_id'],
+            $_POST['title'],
+            $_POST['description'],
+            $_POST['room_type'],
+            $_POST['max_guests'],
+            $_POST['price'],
+            $_POST['location'],
+            $image_url
+        );
+        
+        if ($stmt->execute()) {
+            $listingId = $stmt->insert_id;
+            
+            if (!empty($_POST['amenities'])) {
+                $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
+                foreach (array_filter(explode(',', $_POST['amenities'])) as $amenityId) {
+                    if (is_numeric($amenityId)) {
+                        $amenityStmt->bind_param("ii", $listingId, $amenityId);
+                        $amenityStmt->execute();
+                    }
+                }
+            }
+            
+            header("Location: index.php");
+            exit();
+        } else {
+            $error = "Error creating listing";
+        }
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -156,67 +229,85 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?php endif; ?>
 
         <div class="form-container">
-          <form action="" method="POST" enctype="multipart/form-data">
+          <form action="<?php echo isset($_GET['edit']) ? '?edit=true&id=' . $_GET['id'] : ''; ?>" method="POST"
+            enctype="multipart/form-data">
             <div class="form-grid">
               <div style="display: flex; gap: 10px;">
-                <div class="form-group form-group-full" style="flex:1 ">
+                <div class="form-group form-group-full" style="flex:1">
                   <label class="form-label">Title</label>
-                  <input type="text" name="title" required class="form-input">
+                  <input type="text" name="title" required class="form-input"
+                    value="<?php echo isset($listing) ? htmlspecialchars($listing['title']) : ''; ?>">
                 </div>
 
-                <div class="form-group" style="flex:1 ">
+                <div class="form-group" style="flex:1">
                   <label class="form-label">Room Type</label>
-                  <select name="room_type" style="height: 40px;" required class=" form-input">
+                  <select name="room_type" style="height: 40px;" required class="form-input">
                     <option value="">Select type</option>
-                    <option value="Entire place">Entire place</option>
-                    <option value="Private room">Private room</option>
-                    <option value="Shared room">Shared room</option>
+                    <?php
+                    $room_types = ['Entire place', 'Private room', 'Shared room'];
+                    foreach ($room_types as $type) {
+                        $selected = isset($listing) && $listing['room_type'] === $type ? 'selected' : '';
+                        echo "<option value=\"$type\" $selected>$type</option>";
+                    }
+                    ?>
                   </select>
                 </div>
               </div>
 
               <div class="form-group form-group-full">
                 <label class="form-label">Description</label>
-                <textarea name="description" required class="form-input"></textarea>
+                <textarea name="description" required
+                  class="form-input"><?php echo isset($listing) ? htmlspecialchars($listing['description']) : ''; ?></textarea>
               </div>
-
-
 
               <div class="form-group">
                 <label class="form-label">Maximum Guests</label>
-                <input type="number" name="max_guests" required min="1" class="form-input">
+                <input type="number" name="max_guests" required min="1" class="form-input"
+                  value="<?php echo isset($listing) ? htmlspecialchars($listing['max_guests']) : ''; ?>">
               </div>
-              <div style="display: flex; gap: 10px;">
 
-                <div class="form-group" style="flex:1 ">
+              <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:1">
                   <label class="form-label">Price per Night ($)</label>
-                  <input type="number" name="price" required min="0" step="0.01" class="form-input">
+                  <input type="number" name="price" required min="0" step="0.01" class="form-input"
+                    value="<?php echo isset($listing) ? htmlspecialchars($listing['price']) : ''; ?>">
                 </div>
 
-                <div class="form-group" style="flex:1 ">
+                <div class="form-group" style="flex:1">
                   <label class="form-label">Location</label>
-                  <input type="text" name="location" required class="form-input">
+                  <input type="text" name="location" required class="form-input"
+                    value="<?php echo isset($listing) ? htmlspecialchars($listing['location']) : ''; ?>">
                 </div>
               </div>
 
               <div class="form-group form-group-full">
                 <label class="form-label">Upload Images</label>
-                <input type="file" name="image" multiple accept="image/*" class="form-input"
-                  onchange="previewImages(event)">
+                <?php if (isset($listing) && $listing['image_url']): ?>
+                <input type="hidden" name="current_image"
+                  value="<?php echo htmlspecialchars($listing['image_url']); ?>">
+                <div class="current-image-preview">
+                  <img src="<?php echo htmlspecialchars($listing['image_url']); ?>" alt="Current Image"
+                    style="max-width: 200px;">
+                </div>
+                <?php endif; ?>
+                <input type="file" name="image" accept="image/*" class="form-input" onchange="previewImages(event)">
                 <div id="imagePreview" class="image-preview-container"></div>
               </div>
 
               <div class="form-group form-group-full">
                 <label class="form-label">Amenities</label>
-                <input type="text" name="amenities" class="form-input"
-                  placeholder="WiFi, TV, Kitchen (comma-separated)">
+                <input type="text" name="amenities" class="form-input" placeholder="WiFi, TV, Kitchen (comma-separated)"
+                  value="<?php echo isset($listing) ? htmlspecialchars($listing['amenities']) : ''; ?>">
               </div>
 
               <div class="form-group form-group-full">
-                <button type="submit" class="btn ">Add Listing</button>
+                <button type="submit" class="btn">
+                  <?php echo isset($_GET['edit']) ? 'Update' : 'Add'; ?> Listing
+                </button>
               </div>
             </div>
           </form>
+
         </div>
       </div>
   </div>

@@ -23,16 +23,16 @@ $stmt->close();
 
 // Fetch all listings with their booking counts and total revenue
 $stmt = $conn->prepare("
-    SELECT 
-        l.*,
-        COUNT(DISTINCT b.id) as booking_count,
-        COALESCE(SUM(b.total_price), 0) as total_revenue,
-        MAX(b.created_at) as last_booking_date
-    FROM listings l
-    LEFT JOIN bookings b ON l.id = b.listing_id
-    WHERE l.host_id = ?
-    GROUP BY l.id
-    ORDER BY l.created_at DESC
+   SELECT 
+       l.*,
+       COUNT(DISTINCT b.id) as booking_count,
+       COUNT(CASE WHEN b.status = 'confirmed' THEN 1 END) as total_sales,
+       MAX(b.created_at) as last_booking_date
+   FROM listings l
+   LEFT JOIN bookings b ON l.id = b.listing_id
+   WHERE l.host_id = ?
+   GROUP BY l.id
+   ORDER BY l.created_at DESC
 ");
 $stmt->bind_param("i", $host_id);
 $stmt->execute();
@@ -235,8 +235,7 @@ $stmt->close();
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bookings
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue
-                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions
                   </th>
@@ -259,7 +258,7 @@ $stmt->close();
                     <div class="text-sm text-gray-900"><?php echo number_format($listing['booking_count']); ?></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">$<?php echo number_format($listing['total_revenue'], 2); ?></div>
+                    <div class="text-sm text-gray-900"><?php echo number_format($listing['total_sales']); ?></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -268,7 +267,8 @@ $stmt->close();
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <a href="#" class="text-red-600 hover:text-red-900 mr-3">Edit</a>
+                    <a href="/stayHaven/host_dashboard/add_listing.php?edit=true&id=<?php echo $listing['id'] ?>"
+                      class="text-red-600 hover:text-red-900 mr-3">Edit</a>
                     <a href="#" class="text-red-600 hover:text-red-900">View</a>
                   </td>
                 </tr>

@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['user_id'] = $stmt->insert_id;
                 $_SESSION['user_name'] = $name;
                 $_SESSION['user_role'] = $role;
-                header("Location: " . ($role === 'host' ? 'host_dashboard.php' : 'index.php'));
+                header("Location: " . ($role === 'host' ? 'host_dashboard/index.php' : 'index.php'));
                 exit();
             } else {
                 $error = "Registration failed. Please try again.";

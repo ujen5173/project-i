@@ -42,7 +42,7 @@ if ($isLoggedIn) {
       <!-- Navigation from index.php -->
       <div class="left-nav">
         <div class="nav__logo">
-          <a href="/index.php">
+          <a href="/stayHaven/index.php">
             <h1 class="logo">StayHaven</h1>
           </a>
         </div>
@@ -72,7 +72,9 @@ if ($isLoggedIn) {
           </p>
           <?php endif; ?>
         </div>
-        <button class="btn btn-sm">Logout</button>
+        <a href="logout.php">
+          <button class="btn btn-sm">Logout</button>
+        </a>
       </div>
       <?php else: ?>
 

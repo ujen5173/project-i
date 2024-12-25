@@ -74,7 +74,7 @@ $stmt->close();
     <nav class="nav container">
       <div class="left-nav">
         <div class="nav__logo">
-          <a href="/index.php">
+          <a href="/stayHaven/index.php">
             <h1 class="logo">StayHaven</h1>
           </a>
         </div>
@@ -102,16 +102,18 @@ $stmt->close();
             Logged in as <?php echo $userDetails['name']; ?>
           </p>
           <?php endif; ?>
-
         </div>
+
         <?php if ($userDetails['role'] === "host"): ?>
         <div>
           <a href="host_dashboard/index.php">
-
             <button class="btn btn-sm">Dashboard</button>
           </a>
         </div>
         <?php endif; ?>
+        <a href="logout.php">
+          <button class="btn btn-sm">Logout</button>
+        </a>
       </div>
       <?php else: ?>
 
@@ -144,7 +146,7 @@ $stmt->close();
           with
           joy.
         </p>
-        <div class="booking-form">
+        <form class="booking-form">
           <div>
             <label for="check-in">Check in</label>
             <input type="date" id="check-in" placeholder="11-17-2024">
@@ -158,7 +160,7 @@ $stmt->close();
             <input type="number" id="guests" min="1" max="10" style="width: 100%;" placeholder="4 person">
           </div>
           <button class="btn">Search</button>
-        </div>
+        </form>
       </div>
     </div>
   </main>
@@ -170,7 +172,7 @@ $stmt->close();
 
       <div class="featured-listings__list grid grid-cols-4 gap-4">
         <?php foreach ($featuredListings as $listing): ?>
-        <div class="featured-listing">
+        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>" class="featured-listing">
           <div class="featured-listing__img">
             <?php if ($listing['image_url']): ?>
             <img src="/stayHaven/<?php echo htmlspecialchars($listing['image_url']); ?>"
@@ -200,7 +202,7 @@ $stmt->close();
               </strong> per night
             </div>
           </div>
-        </div>
+        </a>
         <?php endforeach; ?>
       </div>
     </div>
@@ -255,6 +257,41 @@ $stmt->close();
     </div>
   </footer>
 </body>
+
+<script>
+// Add to your homepage JavaScript
+document.querySelector('.booking-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const checkIn = document.getElementById('check-in').value;
+  const checkOut = document.getElementById('check-out').value;
+  const guests = document.getElementById('guests').value;
+
+  const searchParams = new URLSearchParams({
+    check_in: checkIn,
+    check_out: checkOut,
+    guests: guests
+  });
+
+  window.location.href = `/stayHaven/search.php?${searchParams.toString()}`;
+});
+
+// Date validation
+document.getElementById('check-in').addEventListener('change', function() {
+  const checkOut = document.getElementById('check-out');
+  checkOut.min = this.value;
+});
+
+document.getElementById('check-out').addEventListener('change', function() {
+  const checkIn = document.getElementById('check-in');
+  checkIn.max = this.value;
+});
+
+// Set min date to today
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('check-in').min = today;
+document.getElementById('check-out').min = today;
+</script>
 
 <script>
 // Toggle dropdown menu
