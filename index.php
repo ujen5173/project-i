@@ -19,9 +19,16 @@ if ($isLoggedIn) {
     $userDetails = getUserDetails($conn, $_SESSION['user_id']);
 }
 
+$stmt = $conn->prepare("
+    SELECT 
+        l.*,
+        u.name AS host_name 
+    FROM listings l
+    JOIN users u ON l.host_id = u.id
+    ORDER BY l.created_at DESC 
+    LIMIT 4
+");
 
-// Fetch featured listings
-$stmt = $conn->prepare("SELECT * FROM listings ORDER BY created_at DESC LIMIT 4");
 $stmt->execute();
 $featuredListings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
@@ -34,6 +41,8 @@ $stmt->close();
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+
   <!-- Lato Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,72 +72,92 @@ $stmt->close();
 
   <!-- CSS -->
   <link rel="stylesheet" href="css/styles.css">
-  <!-- tailwindcss -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+  <link rel="stylesheet" href="css/bookings.css">
   <link rel="stylesheet" href="css/index.css">
+  <script src="//unpkg.com/alpinejs" defer></script>
 
 </head>
 
 <body>
-  <header class="header">
-    <nav class="nav container">
-      <div class="left-nav">
-        <div class="nav__logo">
-          <a href="/stayHaven/index.php">
-            <h1 class="logo">StayHaven</h1>
+  <header class="bg-white border-b border-slate-200">
+    <nav class="container mx-auto px-4">
+      <div class="flex items-center justify-between h-16 w-full">
+        <div class="flex items-center gap-8">
+          <a href="/stayHaven/index.php" class="text-xl font-bold text-rose-600">
+            StayHaven
           </a>
-        </div>
-        <ul class="nav__list">
-          <li class="nav__item">
-            <a href="/stayhaven/index.php" class="nav__link">Home</a>
-          </li>
-          <li class="nav__item">
-            <a href="#" class="nav__link">About</a>
-          </li>
-          <li class="nav__item">
-            <a href="/stayhaven/listings.php" class="nav__link">Listings</a>
-          </li>
-          <li class="nav__item">
-            <a href="#" class="nav__link">Contact</a>
-          </li>
-        </ul>
-      </div>
 
-      <?php if ($isLoggedIn): ?>
-      <div class="user-menu" style="display: flex; gap: 1rem; align-items: center" id="userMenu">
-        <div class="user-avatar">
-          <?php if ($userDetails['name']): ?>
-          <p style="color: white;">
-            Logged in as <?php echo $userDetails['name']; ?>
-          </p>
-          <?php endif; ?>
+          <div class="hidden md:block">
+            <ul class="flex items-center gap-6">
+              <li>
+                <a href="/stayhaven/index.php" class="text-slate-600 hover:text-slate-900">Home</a>
+              </li>
+              <li>
+                <a href="/stayhaven/listings.php" class="text-slate-600 hover:text-slate-900">Listings</a>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <?php if ($userDetails['role'] === "host"): ?>
-        <div>
-          <a href="host_dashboard/index.php">
-            <button class="btn btn-sm">Dashboard</button>
-          </a>
-        </div>
-        <?php endif; ?>
-        <a href="logout.php">
-          <button class="btn btn-sm">Logout</button>
-        </a>
-      </div>
-      <?php else: ?>
-
-      <div class="btns__wrapper">
-        <a href="/stayhaven/login.php">
-          <button style="color: white;" class="btn btn-link">
-            Login / Sign in
+        <?php if ($isLoggedIn): ?>
+        <div class="relative" x-data="{ open: false }">
+          <button @click="open = !open" @click.outside="open = false"
+            class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
+            <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center">
+              <span class="text-white font-medium">
+                <?php echo substr($userDetails['name'], 0, 1); ?>
+              </span>
+            </div>
+            <span class="text-slate-700"><?php echo $userDetails['name']; ?></span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
           </button>
-        </a>
-        <a href="/stayhaven/sign-up.php">
-          <button class="btn btn-secondary">
+
+          <div x-show="open" x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+            <div class="px-4 py-2 border-b border-slate-200">
+              <p class="text-sm text-slate-500">Signed in as</p>
+              <p class="text-sm font-medium truncate"><?php echo $userDetails['email']; ?></p>
+            </div>
+
+            <a href="/stayhaven/bookings.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="calendar" class="w-4 h-4"></i>
+              My Bookings
+            </a>
+
+            <a href="/stayhaven/favorites.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="heart" class="w-4 h-4"></i>
+              Favorites
+            </a>
+
+            <a href="/stayhaven/settings.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+              Settings
+            </a>
+
+            <div class="border-t border-slate-200 mt-1">
+              <a href="logout.php" class="flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                Logout
+              </a>
+            </div>
+          </div>
+        </div>
+        <?php else: ?>
+        <div class="flex items-center gap-4">
+          <a href="/stayhaven/login.php" class="text-slate-600 hover:text-slate-900">
+            Login
+          </a>
+          <a href="/stayhaven/sign-up.php"
+            class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg transition-colors">
             Register
-          </button>
-        </a>
-
+          </a>
+        </div>
         <?php endif; ?>
       </div>
     </nav>
@@ -172,36 +201,36 @@ $stmt->close();
 
       <div class="featured-listings__list grid grid-cols-4 gap-4">
         <?php foreach ($featuredListings as $listing): ?>
-        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>" class="featured-listing">
-          <div class="featured-listing__img">
-            <?php if ($listing['image_url']): ?>
-            <img src="/stayHaven/<?php echo htmlspecialchars($listing['image_url']); ?>"
-              alt="<?php echo htmlspecialchars($listing['title']); ?>" class="w-full h-full object-cover">
-            <?php else: ?>
-            <img src="https://via.placeholder.com/300" alt="Placeholder image" class="w-full h-full object-cover">
-            <?php endif; ?>
-          </div>
-          <div class="featured-listing__content">
-            <h2 class="featured-listing__title">
-              <?php echo htmlspecialchars($listing['title']); ?>
-            </h2>
-            <p class="listing-location" style="display: flex; align-items:center; gap: 6px; margin-bottom: 15px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-map-pin-check">
-                <path
-                  d="M19.43 12.935c.357-.967.57-1.955.57-2.935a8 8 0 0 0-16 0c0 4.993 5.539 10.193 7.399 11.799a1 1 0 0 0 1.202 0 32.197 32.197 0 0 0 .813-.728" />
-                <circle cx="12" cy="10" r="3" />
-                <path d="m16 18 2 2 4-4" />
-              </svg>
-              <?php echo htmlspecialchars($listing['location']); ?>
-            </p>
-            <div class=" price">
-              <strong>
-                $<?php echo number_format($listing['price'], 2); ?>
-              </strong> per night
+        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>">
+          <div class="booking-card">
+            <div class="booking-image">
+              <img src="/stayHaven<?php echo $listing['image_url'] ?? "/images/placeholder-image.jpg" ?>"
+                alt="<?php echo htmlspecialchars($listing['title']); ?>">
+            </div>
+
+            <div class="booking-content">
+              <h3 class="h-14"><?php echo htmlspecialchars($listing['title']); ?></h3>
+
+              <div class="listing-details space-y-2">
+                <div class="detail-item space-x-2">
+                  <i data-lucide="map-pin"></i>
+                  <span><?php echo htmlspecialchars($listing['location']); ?></span>
+                </div>
+
+                <div class="detail-item space-x-2">
+                  <i data-lucide="user"></i>
+                  <span>Host: <?php echo htmlspecialchars($listing['host_name']); ?></span>
+                </div>
+
+
+                <div class="detail-item space-x-2">
+                  <i data-lucide="credit-card"></i>
+                  <span>Total: $<?php echo number_format($listing['price'], 2); ?></span>
+                </div>
+              </div>
             </div>
           </div>
+
         </a>
         <?php endforeach; ?>
       </div>
@@ -311,6 +340,10 @@ if (userMenu) {
     }
   });
 }
+</script>
+
+<script>
+lucide.createIcons();
 </script>
 
 </html>

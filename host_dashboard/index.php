@@ -39,23 +39,55 @@ $stmt->execute();
 $listings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Get monthly revenue data for the chart
 $stmt = $conn->prepare("
     SELECT 
-        DATE_FORMAT(b.created_at, '%Y-%m') as month,
+        DATE(b.created_at) as date,
+        DATE_FORMAT(b.created_at, '%a, %b %d') as date_formatted,
         COUNT(*) as booking_count,
-        SUM(b.total_price) as revenue
+        COALESCE(SUM(b.total_price), 0) as revenue
     FROM bookings b
     JOIN listings l ON b.listing_id = l.id
     WHERE l.host_id = ?
-    GROUP BY DATE_FORMAT(b.created_at, '%Y-%m')
-    ORDER BY month ASC
-    LIMIT 12
+    AND b.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+    GROUP BY DATE(b.created_at)
+    ORDER BY date ASC
 ");
 $stmt->bind_param("i", $host_id);
 $stmt->execute();
-$monthly_data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$daily_data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+// Fill in any missing days with zero values
+$daily_revenue = [];
+for ($i = 6; $i >= 0; $i--) {
+    $date = date('Y-m-d', strtotime("-$i days"));
+    $date_formatted = date('D, M d', strtotime("-$i days"));
+    $found = false;
+    
+    foreach ($daily_data as $data) {
+        if ($data['date'] == $date) {
+            $daily_revenue[] = [
+                'date' => $date,
+                'date_formatted' => $date_formatted,
+                'booking_count' => $data['booking_count'],
+                'revenue' => $data['revenue']
+            ];
+            $found = true;
+            break;
+        }
+    }
+    
+    if (!$found) {
+        $daily_revenue[] = [
+            'date' => $date,
+            'date_formatted' => $date_formatted,
+            'booking_count' => 0,
+            'revenue' => 0
+        ];
+    }
+}
+
+ 
 ?>
 
 <!DOCTYPE html>
@@ -269,7 +301,8 @@ $stmt->close();
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <a href="/stayHaven/host_dashboard/add_listing.php?edit=true&id=<?php echo $listing['id'] ?>"
                       class="text-red-600 hover:text-red-900 mr-3">Edit</a>
-                    <a href="#" class="text-red-600 hover:text-red-900">View</a>
+                    <a href="#" data-listing-id="<?php echo htmlspecialchars($listing['id']); ?>"
+                      class="delete-listing text-red-600 hover:text-red-900">Delete</a>
                   </td>
                 </tr>
                 <?php endforeach; ?>
@@ -282,22 +315,58 @@ $stmt->close();
   </div>
 
   <script>
-  // Initialize Revenue Chart
+  // Client-side JavaScript
+  document.addEventListener('DOMContentLoaded', function() {
+    // Add click event listeners to all delete buttons
+    document.querySelectorAll('.delete-listing').forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        if (!confirm('Are you sure you want to delete this listing? This action cannot be undone.')) {
+          return;
+        }
+
+        const listingId = this.dataset.listingId;
+        const listingElement = this.closest('.listing-container');
+
+        fetch('delete_listing.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `listing_id=${listingId}`
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              const row = e.target.closest('tr');
+              if (row) {
+                row.remove();
+                alert('Listing deleted successfully');
+              }
+            } else {
+              throw new Error(data.error || 'Failed to delete listing');
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting listing: ' + error.message);
+          });
+      });
+    });
+  });
+  </script>
+  <script>
   const ctx = document.getElementById('revenueChart').getContext('2d');
-  const monthlyData = <?php echo json_encode($monthly_data); ?>;
+  const dailyData = <?php echo json_encode($daily_revenue); ?>;
 
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels: monthlyData.map(data => {
-        const date = new Date(data.month + '-01');
-        return date.toLocaleDateString('default', {
-          month: 'short'
-        });
-      }),
+      labels: dailyData.map(data => data.date_formatted),
       datasets: [{
-        label: 'Revenue',
-        data: monthlyData.map(data => data.revenue),
+        label: 'Daily Revenue',
+        data: dailyData.map(data => data.revenue),
         borderColor: '#ef4444',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         tension: 0.4,
@@ -309,6 +378,13 @@ $stmt->close();
       plugins: {
         legend: {
           display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `Revenue: $${context.raw.toFixed(2)}`;
+            }
+          }
         }
       },
       scales: {
@@ -317,6 +393,11 @@ $stmt->close();
           grid: {
             display: true,
             color: 'rgba(0, 0, 0, 0.05)'
+          },
+          ticks: {
+            callback: function(value) {
+              return '$' + value;
+            }
           }
         },
         x: {

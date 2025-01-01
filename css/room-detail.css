@@ -1,12 +1,4 @@
-header {
-  width: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 50;
-}
-
+ 
 header nav {
   display: flex;
   justify-content: space-between;
@@ -99,9 +91,8 @@ a:hover {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
 }
-.room-detail-section {
-    padding-top: 100px;
-    padding-bottom: 30px;
+.room-detail-section { 
+    padding: 30px 0;
 }
 
 .room-detail__wrapper {
@@ -230,4 +221,16 @@ a:hover {
 .room-detail-wrapper {
     display: flex;
     gap: 10px;
+    width: 100%;
 } 
+
+.room-images_thumbnail {
+    flex: 1;
+}
+
+.room-images_thumbnail img {
+    width: 100%;
+    aspect-ratio: 16/11;
+    object-fit: cover;
+    border-radius: var(--radius);
+}

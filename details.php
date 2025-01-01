@@ -17,7 +17,7 @@ $room = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$room) {
-    // Redirect or show error if room not found
+    // roseirect or show error if room not found
     header("Location: index.php");
     exit();
 }
@@ -35,7 +35,7 @@ if ($isLoggedIn) {
 }
 
 
-// Fetch featured listings
+// Fetch featurose listings
 $stmt = $conn->prepare("SELECT DISTINCT l.*,
     (
         SELECT COUNT(*) FROM listing_amenities la 
@@ -86,6 +86,7 @@ $stmt->close();
 
   <!-- Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="//unpkg.com/alpinejs" defer></script>
 
   <!-- CSS -->
   <link rel="stylesheet" href="css/styles.css">
@@ -94,62 +95,90 @@ $stmt->close();
 </head>
 
 <body>
-  <header class="header">
-    <nav class="nav container">
-      <div class="left-nav">
-        <div class="nav__logo">
-          <a href="/stayHaven/index.php">
-            <h1 class="logo">StayHaven</h1>
+  <header class="bg-white border-b border-slate-200">
+    <nav class="container mx-auto px-4">
+      <div class="flex items-center justify-between h-16 w-full">
+        <div class="flex items-center gap-8">
+          <a href="/stayHaven/index.php" class="text-xl font-bold text-rose-600">
+            StayHaven
+          </a>
+
+          <div class="hidden md:block">
+            <ul class="flex items-center gap-6">
+              <li>
+                <a href="/stayhaven/index.php" class="text-slate-600 hover:text-slate-900">Home</a>
+              </li>
+              <li>
+                <a href="/stayhaven/listings.php" class="text-slate-600 hover:text-slate-900">Listings</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <?php if ($isLoggedIn): ?>
+        <div class="relative" x-data="{ open: false }">
+          <button @click="open = !open" @click.outside="open = false"
+            class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
+            <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center">
+              <span class="text-white font-medium">
+                <?php echo substr($userDetails['name'], 0, 1); ?>
+              </span>
+            </div>
+            <span class="text-slate-700"><?php echo $userDetails['name']; ?></span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </button>
+
+          <div x-show="open" x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+            <div class="px-4 py-2 border-b border-slate-200">
+              <p class="text-sm text-slate-500">Signed in as</p>
+              <p class="text-sm font-medium truncate"><?php echo $userDetails['email']; ?></p>
+            </div>
+
+            <a href="/stayhaven/bookings.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="calendar" class="w-4 h-4"></i>
+              My Bookings
+            </a>
+
+            <a href="/stayhaven/favorites.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="heart" class="w-4 h-4"></i>
+              Favorites
+            </a>
+
+            <a href="/stayhaven/settings.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+              Settings
+            </a>
+
+            <div class="border-t border-slate-200 mt-1">
+              <a href="logout.php" class="flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                Logout
+              </a>
+            </div>
+          </div>
+        </div>
+        <?php else: ?>
+        <div class="flex items-center gap-4">
+          <a href="/stayhaven/login.php" class="text-slate-600 hover:text-slate-900">
+            Login
+          </a>
+          <a href="/stayhaven/sign-up.php"
+            class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg transition-colors">
+            Register
           </a>
         </div>
-        <ul class="nav__list">
-          <li class="nav__item">
-            <a href="/stayhaven/index.php" class="nav__link">Home</a>
-          </li>
-          <li class="nav__item">
-            <a href="#" class="nav__link">About</a>
-          </li>
-          <li class="nav__item">
-            <a href="/stayhaven/listings.php" class="nav__link">Listings</a>
-          </li>
-          <li class="nav__item">
-            <a href="#" class="nav__link">Contact</a>
-          </li>
-        </ul>
-        </ul>
-      </div>
-
-      <?php if ($isLoggedIn): ?>
-      <div class="user-menu" style="display: flex; gap: 1rem; align-items: center" id="userMenu">
-        <div class="user-avatar">
-          <?php if ($userDetails['name']): ?>
-          <p style="color: #111;">
-            Logged in as <?php echo $userDetails['name']; ?>
-          </p>
-          <?php endif; ?>
-        </div>
-        <a href="logout.php">
-          <button class="btn btn-sm">Logout</button>
-        </a>
-      </div>
-      <?php else: ?>
-
-      <div class="btns__wrapper">
-        <a href="/stayhaven/login.php">
-          <button style="color: #111;" class="btn btn-link">
-            Login / Sign in
-          </button>
-        </a>
-        <a href="/stayhaven/sign-up.php">
-          <button class="btn btn-secondary">
-            Register
-          </button>
-        </a>
-
         <?php endif; ?>
       </div>
     </nav>
   </header>
+
 
   <main class="room-detail-section">
     <div class="room-detail__wrapper container">
@@ -195,14 +224,14 @@ $stmt->close();
             <h3>Amenities</h3>
             <div class="amenities-wrapper">
               <?php 
-    $amenities = $room['amenities'] ? explode(',', $room['amenities']) : [];
-    if (empty($amenities)): ?>
+                $amenities = $room['amenities'] ? explode(',', $room['amenities']) : [];
+                if (empty($amenities)): ?>
               <p>No amenities available</p>
               <?php else:
-      foreach ($amenities as $amenity): ?>
+                foreach ($amenities as $amenity): ?>
               <span class="amenity-tag"><?php echo htmlspecialchars($amenity); ?></span>
               <?php endforeach;
-    endif; ?>
+                endif; ?>
             </div>
           </div>
 
@@ -210,7 +239,7 @@ $stmt->close();
             <div class="price">
               <strong>$<?php echo number_format($room['price'], 2); ?></strong> per night
             </div>
-            <button class="btn btn-primary">Book Now</button>
+            <a href="booking-form.php?id=<?php echo $room_id; ?>" class="btn btn-primary">Book Now</a>
           </div>
 
           <div class="flex gap-2">
@@ -229,15 +258,26 @@ $stmt->close();
     </div>
   </main>
 
-  <section class="latest-listings-stds">
+  <section class="latest-listings-stds py-10">
     <div class="latest-listings-stds__wrapper container">
       <h1 class="featured-listings__title">
         Similar Listings
       </h1>
-      <div class="featured-listings__list grid grid-cols-4 gap-4">
+      <?php if (empty($similarListings)): ?>
+      <div class="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-lg">
+        <i data-lucide="home" class="w-16 h-16 text-slate-300 mb-4"></i>
+        <h3 class="text-lg font-medium text-slate-900 mb-2">No similar listings found</h3>
+        <p class="text-slate-500 text-center max-w-md mb-6">We couldn't find any listings with similar features at the
+          moment</p>
+        <a href="/stayHaven/listings.php" class="text-rose-600 hover:text-rose-700 font-medium">
+          Browse all listings →
+        </a>
+      </div>
+      <?php else: ?>
+      <div class="featurose-listings__list grid grid-cols-4 gap-4">
         <?php foreach ($similarListings as $listing): ?>
-        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>" class="featured-listing">
-          <div class="featured-listing__img">
+        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>" class="featurose-listing">
+          <div class="featurose-listing__img">
             <?php if ($listing['image_url']): ?>
             <img src="/stayHaven/<?php echo htmlspecialchars($listing['image_url']); ?>"
               alt="<?php echo htmlspecialchars($listing['title']); ?>" class="w-full h-full object-cover">
@@ -245,8 +285,8 @@ $stmt->close();
             <img src="https://via.placeholder.com/300" alt="Placeholder image" class="w-full h-full object-cover">
             <?php endif; ?>
           </div>
-          <div class="featured-listing__content">
-            <h2 class="featured-listing__title">
+          <div class="featurose-listing__content">
+            <h2 class="featurose-listing__title">
               <?php echo htmlspecialchars($listing['title']); ?>
             </h2>
             <p class="listing-location" style="display: flex; align-items:center; gap: 6px; margin-bottom: 15px;">
@@ -260,7 +300,7 @@ $stmt->close();
               </svg>
               <?php echo htmlspecialchars($listing['location']); ?>
             </p>
-            <div class=" price">
+            <div class="price">
               <strong>
                 $<?php echo number_format($listing['price'], 2); ?>
               </strong> per night
@@ -269,6 +309,7 @@ $stmt->close();
         </a>
         <?php endforeach; ?>
       </div>
+      <?php endif; ?>
     </div>
   </section>
 
@@ -280,7 +321,8 @@ $stmt->close();
             StayHaven
           </h1>
           <p class="footer_description">
-            Explore unique accommodations around the world, tailored to your style and budget. Book with ease, stay with
+            Explore unique accommodations around the world, tailorose to your style and budget. Book with ease, stay
+            with
             joy.
           </p>
         </div>
