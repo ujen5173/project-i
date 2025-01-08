@@ -277,7 +277,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
 
       <div class="container p-6">
-        <h1 class="page-title">Add New Listing</h1>
+        <h1 class="page-title"><?php echo isset($_GET['edit']) ? 'Edit Listing' : 'Add New Listing'; ?></h1>
 
         <?php if ($error): ?>
         <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
@@ -313,7 +313,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </div>
               </div>
 
-              <div class="form-group quantity-field" style="display: none;">
+              <div class="form-group quantity-field"
+                style="display: <?php echo (isset($listing) && ($listing['room_type'] === 'Private room' || $listing['room_type'] === 'Shared room')) ? 'block' : 'none'; ?>;">
                 <label class="form-label">Quantity</label>
                 <input type="number" name="quantity" min="1" class="form-input"
                   value="<?php echo isset($listing) ? htmlspecialchars($listing['quantity']) : '1'; ?>">
@@ -380,15 +381,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   </main>
   <script>
   // Show/hide quantity field based on room type
-  document.querySelector('select[name="room_type"]').addEventListener('change', function() {
-    const quantityField = document.querySelector('.quantity-field');
-    if (this.value === 'Private room' || this.value === 'Shared room') {
+  const roomTypeSelect = document.querySelector('select[name="room_type"]');
+  const quantityField = document.querySelector('.quantity-field');
+
+  function updateQuantityVisibility() {
+    if (roomTypeSelect.value === 'Private room' || roomTypeSelect.value === 'Shared room') {
       quantityField.style.display = 'block';
     } else {
       quantityField.style.display = 'none';
       document.querySelector('input[name="quantity"]').value = '1';
     }
-  });
+  }
+
+  // Set initial state on page load
+  updateQuantityVisibility();
+
+  // Update on change
+  roomTypeSelect.addEventListener('change', updateQuantityVisibility);
 
   function previewImage(event) {
     const preview = document.getElementById('imagePreview');

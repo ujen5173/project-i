@@ -66,7 +66,7 @@ $stmt->close();
     rel="stylesheet">
 
 
-  <title>Document</title>
+  <title>Home - Stayhaven</title>
 
   <!-- Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>

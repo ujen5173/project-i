@@ -1,6 +1,6 @@
 <?php
+session_start();
 require_once 'db/config.php';
-
 
 // Function to get user details
 function getUserDetails($conn, $user_id) {
@@ -35,11 +35,23 @@ if (!empty($_GET)) {
     if (!empty($_GET['check_in']) && !empty($_GET['check_out'])) {
         $checkIn = $conn->real_escape_string($_GET['check_in']);
         $checkOut = $conn->real_escape_string($_GET['check_out']);
-        $conditions[] = "l.id NOT IN (
-            SELECT listing_id FROM bookings 
-            WHERE status != 'cancelled' 
-            AND ((check_in BETWEEN '$checkIn' AND '$checkOut') 
-            OR (check_out BETWEEN '$checkIn' AND '$checkOut'))
+        
+        // Modified subquery to check room availability based on quantity
+        $conditions[] = "(
+            l.id NOT IN (
+                SELECT b.listing_id 
+                FROM bookings b 
+                WHERE b.status != 'cancelled' 
+                AND (
+                    (b.check_in <= '$checkOut' AND b.check_out >= '$checkIn')
+                )
+                GROUP BY b.listing_id 
+                HAVING COUNT(*) >= (
+                    SELECT quantity 
+                    FROM listings 
+                    WHERE id = b.listing_id
+                )
+            )
         )";
     }
     
@@ -100,6 +112,7 @@ if ($conn->error) {
   <link rel="stylesheet" href="css/search.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/index.css">
+  <script src="//unpkg.com/alpinejs" defer></script>
 
 </head>
 
@@ -300,5 +313,8 @@ if ($conn->error) {
     </section>
   </main>
 </body>
+<script>
+lucide.createIcons();
+</script>
 
 </html>

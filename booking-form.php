@@ -40,10 +40,11 @@ if (!$room) {
 }
 
 $stmt = $conn->prepare("
-    SELECT check_in, check_out 
-    FROM bookings 
-    WHERE listing_id = ? 
-    AND check_out >= CURRENT_DATE()
+    SELECT b.check_in, b.check_out, COUNT(*) as booked_count 
+    FROM bookings b 
+    WHERE b.listing_id = ? 
+    AND b.check_out >= CURRENT_DATE()
+    GROUP BY b.check_in, b.check_out
 ");
 $stmt->bind_param("i", $room_id);
 $stmt->execute();
@@ -58,12 +59,18 @@ while ($booking = $result->fetch_assoc()) {
     );
     
     foreach ($period as $date) {
-        $booked_dates[] = $date->format('Y-m-d');
+        $date_str = $date->format('Y-m-d');
+        if (!isset($booked_dates[$date_str])) {
+            $booked_dates[$date_str] = 0;
+        }
+        $booked_dates[$date_str] += $booking['booked_count'];
     }
 }
 $stmt->close();
 
 $booked_dates_json = json_encode($booked_dates);
+
+$room_quantity = $room['quantity'];
 ?>
 
 <!DOCTYPE html>
@@ -228,10 +235,29 @@ $booked_dates_json = json_encode($booked_dates);
           class="w-full p-2 border rounded">
       </div>
 
+      <div>
+        <label class="block mb-2">Number of Guests:</label>
+        <input type="number" name="guests" required min="1" max="<?php echo $room['max_guests']; ?>"
+          class="w-full p-2 border rounded" oninput="validateGuests(this)">
+      </div>
+
+      <div class="mb-4">
+        <label for="room_quantity" class="block text-sm font-medium text-gray-700 mb-1">Number of Rooms</label>
+        <select name="room_quantity" id="room_quantity" class="w-full p-2 border border-gray-300 rounded-md" required>
+          <?php
+          $max_rooms = min($room['quantity'], 5); // Limit to 5 rooms per booking
+          for ($i = 1; $i <= $max_rooms; $i++) {
+              echo "<option value=\"$i\">$i</option>";
+          }
+          ?>
+        </select>
+      </div>
+
       <div class="bg-white p-4 rounded shadow">
         <h2 class="font-semibold mb-2">Price Details</h2>
         <p>Price per night: NPR.<?php echo number_format($room['price'], 2); ?></p>
         <div id="totalPrice" class="hidden mt-2">
+          <p>Number of nights: <span id="numberOfNights">0</span></p>
           <p>Total price: NPR.<span id="priceAmount">0</span></p>
         </div>
       </div>
@@ -259,7 +285,8 @@ $booked_dates_json = json_encode($booked_dates);
   </div>
 
   <script>
-  const bookedDates = <?php echo $booked_dates_json; ?>;
+  const bookedDates = <?php echo json_encode($booked_dates); ?>;
+  const roomQuantity = <?php echo $room_quantity; ?>;
   const checkInInput = document.querySelector('input[name="check_in"]');
   const checkOutInput = document.querySelector('input[name="check_out"]');
   const pricePerNight = <?php echo $room['price']; ?>;
@@ -270,18 +297,17 @@ $booked_dates_json = json_encode($booked_dates);
 
   function isDateBooked(date) {
     const dateString = date.toISOString().split('T')[0];
-    return bookedDates.includes(dateString);
+    return bookedDates[dateString] >= roomQuantity;
   }
 
   function setDateConstraints(input) {
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
-    const disabledDates = bookedDates.map(date => date);
 
     input.addEventListener('input', function() {
       const selectedDate = this.value;
-      if (disabledDates.includes(selectedDate)) {
-        alert('This date is already booked. Please select another date.');
+      if (bookedDates[selectedDate] >= roomQuantity) {
+        alert('No rooms available for this date. Please select another date.');
         this.value = '';
       }
       calculatePrice();
@@ -293,9 +319,11 @@ $booked_dates_json = json_encode($booked_dates);
       const start = new Date(checkInInput.value);
       const end = new Date(checkOutInput.value);
       const days = (end - start) / (1000 * 60 * 60 * 24);
-      const total = days * pricePerNight;
+      const quantity = parseInt(roomQuantitySelect.value);
+      const total = days * pricePerNight * quantity;
 
       totalPriceDiv.classList.remove('hidden');
+      document.getElementById('numberOfNights').textContent = days;
       priceAmount.textContent = total.toFixed(2);
       return total;
     }
@@ -315,24 +343,115 @@ $booked_dates_json = json_encode($booked_dates);
     }
   });
 
-  // Replace the existing bookingForm event listener in booking-form.php with this:
+  function validateGuests(input) {
+    const maxGuests = <?php echo $room['max_guests']; ?>;
+    if (parseInt(input.value) > maxGuests) {
+      alert(`Maximum ${maxGuests} guests allowed for this listing`);
+      input.value = maxGuests;
+    }
+    if (parseInt(input.value) < 1) {
+      input.value = 1;
+    }
+  }
 
+  function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+      <div class="fixed top-4 right-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg shadow-lg border border-red-200 flex items-center gap-2 animate-slide-in">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        </svg>
+        ${message}
+      </div>
+    `;
+    document.body.appendChild(errorDiv);
+
+    // Remove after 5 seconds
+    setTimeout(() => {
+      errorDiv.classList.add('animate-slide-out');
+      setTimeout(() => errorDiv.remove(), 300);
+    }, 5000);
+  }
+
+  // Add this CSS to your styles
+  const style = document.createElement('style');
+  style.textContent = `
+    .animate-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .animate-slide-out {
+      animation: slideOut 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Update your form submission handler
   bookingForm.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     <?php if (empty($userDetails['phone'])): ?>
-    alert('Please add your phone number in your profile before booking.');
+    showError('Please add your phone number in your profile before booking.');
     return;
     <?php endif; ?>
 
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
     if (!paymentMethod) {
-      alert('Please select a payment method');
+      showError('Please select a payment method');
+      return;
+    }
+
+    // Validate dates
+    if (!checkInInput.value || !checkOutInput.value) {
+      showError('Please select both check-in and check-out dates');
+      return;
+    }
+
+    const checkIn = new Date(checkInInput.value);
+    const checkOut = new Date(checkOutInput.value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (checkIn < today) {
+      showError('Check-in date cannot be in the past');
+      return;
+    }
+
+    if (checkOut <= checkIn) {
+      showError('Check-out date must be after check-in date');
       return;
     }
 
     try {
       const totalAmount = calculatePrice();
+      if (!totalAmount || totalAmount <= 0) {
+        showError('Invalid booking amount');
+        return;
+      }
+
       const formData = {
         room_id: <?php echo $room_id; ?>,
         check_in: checkInInput.value,
@@ -341,7 +460,17 @@ $booked_dates_json = json_encode($booked_dates);
         payment_method: paymentMethod.value
       };
 
-      console.log('Sending data:', formData);
+      // Show loading state
+      const submitButton = this.querySelector('button[type="submit"]');
+      const originalButtonText = submitButton.innerHTML;
+      submitButton.disabled = true;
+      submitButton.innerHTML = `
+            <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+        `;
 
       const response = await fetch('process-booking.php', {
         method: 'POST',
@@ -351,43 +480,67 @@ $booked_dates_json = json_encode($booked_dates);
         body: JSON.stringify(formData)
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const text = await response.text();
-      console.log('Raw response:', text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error('Failed to parse JSON:', text);
-        throw new Error('Invalid JSON response from server');
-      }
-
-      console.log('Parsed response:', data);
+      const data = await response.json();
 
       if (data.error) {
-        throw new Error(data.error);
+        throw new Error(data.message || 'Failed to process booking');
       }
 
-      if (paymentMethod.value === 'esewa' && data.esewaForm) {
+      if (data.payment_required && data.esewaForm) {
         esewaPaymentDiv.innerHTML = data.esewaForm;
-        const form = esewaPaymentDiv.querySelector('form');
-        if (form) {
-          form.submit();
-        }
+        document.getElementById('esewaForm').submit();
       } else if (data.success) {
-        window.location.href = 'booking-confirmation.php?id=' + data.booking_id;
-      } else {
-        throw new Error('Invalid response format');
+        window.location.href = 'booking-success.php?id=' + data.booking_id;
       }
+
     } catch (error) {
       console.error('Error:', error);
-      alert(error.message || 'An error occurred. Please try again.');
+      showError(error.message);
+    } finally {
+      // Restore button state
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonText;
     }
   });
+
+  // Add validation to date inputs
+  checkInInput.addEventListener('change', function() {
+    const selectedDate = new Date(this.value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      showError('Check-in date cannot be in the past');
+      this.value = '';
+      return;
+    }
+
+    if (checkOutInput.value) {
+      const checkOut = new Date(checkOutInput.value);
+      if (checkOut <= selectedDate) {
+        showError('Check-out date must be after check-in date');
+        checkOutInput.value = '';
+      }
+    }
+  });
+
+  checkOutInput.addEventListener('change', function() {
+    if (checkInInput.value) {
+      const checkIn = new Date(checkInInput.value);
+      const selectedDate = new Date(this.value);
+
+      if (selectedDate <= checkIn) {
+        showError('Check-out date must be after check-in date');
+        this.value = '';
+      }
+    } else {
+      showError('Please select a check-in date first');
+      this.value = '';
+    }
+  });
+
+  const roomQuantitySelect = document.getElementById('room_quantity');
+  roomQuantitySelect.addEventListener('change', calculatePrice);
   </script>
 </body>
 

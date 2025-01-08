@@ -65,3 +65,9 @@ DROP COLUMN latitude,
 DROP COLUMN longitude,
 ADD COLUMN quantity INT DEFAULT 1,
 MODIFY COLUMN image_url TEXT;
+
+ALTER TABLE bookings
+ADD COLUMN number_of_guests INT NOT NULL;
+
+ALTER TABLE bookings
+ADD COLUMN room_quantity INT DEFAULT 1;

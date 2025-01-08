@@ -129,3 +129,18 @@ Location: "InvalidLocation" |
 "No rooms found" message | 
 Empty state message displayed | 
 Pass
+
+
+-----------------------------------
+✅ phone number ma extra validation (telephone number | 10 digit)
+✅ quantity dekhaena edit garda
+✅ login dropdown menu xaina search page ma
+✅ booking is made but the transaction failed.
+✅ alert message is true if booking done.
+✅ booking confirmation error page after reseve through cash.
+✅ automatically booking on esewa (bug) - if user back from esewa without payment.
+
+search page bug for multiple room booking 
+if a hotel have multiple rooms, and if one room is booked, the other room should be available for booking. (mistake in booking-form) 
+mistake in check availablity of room (check-availablity.php)
+number of guests in room (entire place ma number of guests hudaina)

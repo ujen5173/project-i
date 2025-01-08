@@ -15,21 +15,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Phone number validation
     $phone = preg_replace('/[^0-9]/', '', $phone); // Remove non-numeric characters
     
-    // Validate phone number (assuming Nepal phone format: 10 digits)
-    if (strlen($phone) !== 10) {
-        $error_message = "Please enter a valid 10-digit phone number.";
-    } 
+    // Validate phone number (Nepal format: landline 8 digits starting with 01, mobile 10 digits starting with 98/97)
+    if (!empty($phone)) {
+        if (strlen($phone) === 8 && substr($phone, 0, 2) === '01') {
+            // Valid landline number
+            $formatted_phone = $phone;
+        } elseif (strlen($phone) === 10 && (substr($phone, 0, 2) === '98' || substr($phone, 0, 2) === '97')) {
+            // Valid mobile number
+            $formatted_phone = $phone;
+        } else {
+            $error_message = "Please enter a valid phone number. Use either:
+                            - Landline: 8 digits starting with 01
+                            - Mobile: 10 digits starting with 98 or 97";
+        }
+    }
+
     // Basic validation
-    elseif (empty($name) || empty($email)) {
+    if (empty($name) || empty($email)) {
         $error_message = "Name and email are required fields.";
     } 
-    else {
+    elseif (empty($error_message)) {
         // Start transaction
         $conn->begin_transaction();
         try {
-            // Format phone number for display (e.g., 98XXXXXXXX)
-            $formatted_phone = $phone; // Remove the formatting with hyphens
-            
             // Update basic info
             $sql = "UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?";
             $stmt = $conn->prepare($sql);
@@ -250,9 +258,9 @@ if (!empty($phone_display)) {
 
           <div class="form-group">
             <label for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone" value="<?= htmlspecialchars($phone_display) ?>" maxlength="10"
-              placeholder="98XXXXXXXX" title="Please enter a valid phone number">
-            <small class="text-gray-500">Format: 98XXXXXXXX</small>
+            <input type="tel" id="phone" name="phone" value="<?= htmlspecialchars($phone_display) ?>"
+              placeholder="98XXXXXXXX or 01XXXXXX">
+            <small class="text-gray-500">Format: 98XXXXXXXX (mobile) or 01XXXXXX (landline)</small>
           </div>
         </div>
 
