@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 session_start();
 require_once '../db/config.php';
@@ -10,7 +12,29 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'host') {
 
 $error = '';
 $success = '';
-$upload_dir = '../uploads/listings/';
+// Fix 1: Correct upload directory path using absolute path
+$upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/stayhaven/uploads/listings/';
+
+// Ensure upload directory exists
+if (!file_exists($upload_dir)) {
+    mkdir($upload_dir, 0777, true);
+}
+
+// Fix 2: Create amenities table if it doesn't exist
+$create_amenities_table = "CREATE TABLE IF NOT EXISTS amenities (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL UNIQUE
+)";
+$conn->query($create_amenities_table);
+
+$create_listing_amenities_table = "CREATE TABLE IF NOT EXISTS listing_amenities (
+    listing_id INT,
+    amenity_id INT,
+    PRIMARY KEY (listing_id, amenity_id),
+    FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+    FOREIGN KEY (amenity_id) REFERENCES amenities(id) ON DELETE CASCADE
+)";
+$conn->query($create_listing_amenities_table);
 
 if (isset($_GET['edit']) && $_GET['edit'] === 'true' && isset($_GET['id'])) {
     $listing_id = $_GET['id'];
@@ -25,46 +49,76 @@ if (isset($_GET['edit']) && $_GET['edit'] === 'true' && isset($_GET['id'])) {
         exit();
     }
 
-    // Fetch amenities
-    $amenityStmt = $conn->prepare("SELECT amenity_id FROM listing_amenities WHERE listing_id = ?");
+    // Fix 3: Properly fetch amenities
+    $amenityStmt = $conn->prepare("
+        SELECT a.name 
+        FROM amenities a 
+        JOIN listing_amenities la ON a.id = la.amenity_id 
+        WHERE la.listing_id = ?
+    ");
     $amenityStmt->bind_param("i", $listing_id);
     $amenityStmt->execute();
     $amenityResult = $amenityStmt->get_result();
     $amenities = [];
     while ($row = $amenityResult->fetch_assoc()) {
-        $amenities[] = $row['amenity_id'];
+        $amenities[] = $row['name'];
     }
-    $listing['amenities'] = implode(',', $amenities);
+    $listing['amenities'] = implode(', ', $amenities);
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $image_url = isset($_POST['current_image']) ? $_POST['current_image'] : null;
+    $image_url = null;
     
-    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        $file_type = $_FILES['image']['type'];
-        if (in_array($file_type, ['image/jpeg', 'image/png', 'image/jpg'])) {
-            $file_extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-            $unique_filename = uniqid('listing_') . '.' . $file_extension;
-            $upload_path = $upload_dir . $unique_filename;
-            
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_path)) {
-                if (!empty($_POST['current_image'])) {
-                    $old_image_path = $_SERVER['DOCUMENT_ROOT'] . $_POST['current_image'];
-                    if (file_exists($old_image_path)) {
-                        unlink($old_image_path);
-                    }
+    if (isset($_FILES['image']) && !empty($_FILES['image']['name'])) {
+             $file_type = $_FILES['image']['type'];
+            $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
+                 $file_extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+                $unique_filename = uniqid('listing_') . '.' . $file_extension;
+                $upload_path = $upload_dir . $unique_filename;
+
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_path)) {
+                    $image_url = '/uploads/listings/' . $unique_filename;
+                 } else {
+                    $error = "Failed to move uploaded file. Upload path: " . $upload_path;
                 }
-                $image_url = '/uploads/listings/' . $unique_filename;
-            }
+             
+    }
+
+    // Fix 4: Handle amenities properly
+    $amenities = array_map('trim', explode(',', $_POST['amenities']));
+    $amenity_ids = [];
+    
+    foreach ($amenities as $amenity_name) {
+        if (empty($amenity_name)) continue;
+        
+        // Check if amenity exists
+        $stmt = $conn->prepare("SELECT id FROM amenities WHERE name = ?");
+        $stmt->bind_param("s", $amenity_name);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $amenity_ids[] = $result->fetch_assoc()['id'];
+        } else {
+            // Create new amenity
+            $stmt = $conn->prepare("INSERT INTO amenities (name) VALUES (?)");
+            $stmt->bind_param("s", $amenity_name);
+            $stmt->execute();
+            $amenity_ids[] = $conn->insert_id;
         }
     }
-    
+
+    $quantity = ($_POST['room_type'] === 'Entire place') ? 1 : (int)$_POST['quantity'];
+
     if (isset($_GET['edit']) && $_GET['edit'] === 'true') {
-        $sql = "UPDATE listings SET title=?, description=?, room_type=?, max_guests=?, price=?, location=?, image_url=? 
-                WHERE id=? AND host_id=?";
-                
+        // Update existing listing
+        $sql = "UPDATE listings SET title=?, description=?, room_type=?, max_guests=?, price=?, location=?, quantity=? WHERE id=? AND host_id=?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sssidssis", 
+        
+        if (!empty($image_url)) {
+          $sql = "UPDATE listings SET title=?, description=?, room_type=?, max_guests=?, price=?, location=?, image_url=?, quantity=? WHERE id=? AND host_id=?";
+          $stmt = $conn->prepare($sql);
+          $stmt->bind_param("sssidssiii", 
             $_POST['title'],
             $_POST['description'],
             $_POST['room_type'],
@@ -72,9 +126,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_POST['price'],
             $_POST['location'],
             $image_url,
+            $quantity,
             $_GET['id'],
             $_SESSION['user_id']
         );
+        } else {
+            $stmt->bind_param("sssidsiii", 
+                $_POST['title'],
+                $_POST['description'],
+                $_POST['room_type'],
+                $_POST['max_guests'],
+                $_POST['price'],
+                $_POST['location'],
+                $quantity,
+                $_GET['id'],
+                $_SESSION['user_id']
+            );
+        }
         
         if ($stmt->execute()) {
             // Update amenities
@@ -82,28 +150,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmt->bind_param("i", $_GET['id']);
             $stmt->execute();
             
-            if (!empty($_POST['amenities'])) {
-                $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
-                foreach (array_filter(explode(',', $_POST['amenities'])) as $amenityId) {
-                    if (is_numeric($amenityId)) {
-                        $amenityStmt->bind_param("ii", $_GET['id'], $amenityId);
-                        $amenityStmt->execute();
-                    }
-                }
+            $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
+            foreach ($amenity_ids as $amenity_id) {
+                $amenityStmt->bind_param("ii", $_GET['id'], $amenity_id);
+                $amenityStmt->execute();
             }
             
             header("Location: index.php");
             exit();
         } else {
-            $error = "Error updating listing";
+            $error = "Error updating listing: " . $conn->error;
         }
     } else {
-        // Original add listing code...
-        $sql = "INSERT INTO listings (host_id, title, description, room_type, max_guests, price, location, image_url) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-                
+        // Create new listing
+        $sql = "INSERT INTO listings (host_id, title, description, room_type, max_guests, price, location, image_url, quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("isssidss", 
+        $stmt->bind_param("isssidssi", 
             $_SESSION['user_id'],
             $_POST['title'],
             $_POST['description'],
@@ -111,31 +173,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_POST['max_guests'],
             $_POST['price'],
             $_POST['location'],
-            $image_url
+            $image_url,
+            $quantity
         );
         
         if ($stmt->execute()) {
             $listingId = $stmt->insert_id;
             
-            if (!empty($_POST['amenities'])) {
-                $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
-                foreach (array_filter(explode(',', $_POST['amenities'])) as $amenityId) {
-                    if (is_numeric($amenityId)) {
-                        $amenityStmt->bind_param("ii", $listingId, $amenityId);
-                        $amenityStmt->execute();
-                    }
-                }
+            // Insert amenities
+            $amenityStmt = $conn->prepare("INSERT INTO listing_amenities (listing_id, amenity_id) VALUES (?, ?)");
+            foreach ($amenity_ids as $amenity_id) {
+                $amenityStmt->bind_param("ii", $listingId, $amenity_id);
+                $amenityStmt->execute();
             }
             
             header("Location: index.php");
-            exit();
+             exit();
         } else {
-            $error = "Error creating listing";
+            $error = "Error creating listing: " . $conn->error;
         }
     }
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -184,7 +243,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </a>
           </li>
           <li>
-            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+            <a href="bookings.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
               <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -193,7 +252,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </a>
           </li>
           <li>
-            <a href="logout.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+            <a href="/stayhaven/logout.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
               <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -254,6 +313,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </div>
               </div>
 
+              <div class="form-group quantity-field" style="display: none;">
+                <label class="form-label">Quantity</label>
+                <input type="number" name="quantity" min="1" class="form-input"
+                  value="<?php echo isset($listing) ? htmlspecialchars($listing['quantity']) : '1'; ?>">
+              </div>
+
+
               <div class="form-group form-group-full">
                 <label class="form-label">Description</label>
                 <textarea name="description" required
@@ -268,7 +334,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
               <div style="display: flex; gap: 10px;">
                 <div class="form-group" style="flex:1">
-                  <label class="form-label">Price per Night ($)</label>
+                  <label class="form-label">Price per Night (NPR.)</label>
                   <input type="number" name="price" required min="0" step="0.01" class="form-input"
                     value="<?php echo isset($listing) ? htmlspecialchars($listing['price']) : ''; ?>">
                 </div>
@@ -281,16 +347,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
               </div>
 
               <div class="form-group form-group-full">
-                <label class="form-label">Upload Images</label>
+                <label class="form-label">Upload Image</label>
                 <?php if (isset($listing) && $listing['image_url']): ?>
-                <input type="hidden" name="current_image"
+                <input type="hidden" name="current_image" single
                   value="<?php echo htmlspecialchars($listing['image_url']); ?>">
                 <div class="current-image-preview">
-                  <img src="<?php echo htmlspecialchars($listing['image_url']); ?>" alt="Current Image"
+                  <img src="/stayHaven/<?php echo htmlspecialchars($listing['image_url']); ?>" alt="Current Image"
                     style="max-width: 200px;">
                 </div>
                 <?php endif; ?>
-                <input type="file" name="image" accept="image/*" class="form-input" onchange="previewImages(event)">
+                <input type="file" name="image" accept="image/*" class="form-input" onchange="previewImage(event)">
                 <div id="imagePreview" class="image-preview-container"></div>
               </div>
 
@@ -312,30 +378,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       </div>
   </div>
   </main>
-
   <script>
-  // Simple image preview function
-  function previewImages(event) {
+  // Show/hide quantity field based on room type
+  document.querySelector('select[name="room_type"]').addEventListener('change', function() {
+    const quantityField = document.querySelector('.quantity-field');
+    if (this.value === 'Private room' || this.value === 'Shared room') {
+      quantityField.style.display = 'block';
+    } else {
+      quantityField.style.display = 'none';
+      document.querySelector('input[name="quantity"]').value = '1';
+    }
+  });
+
+  function previewImage(event) {
     const preview = document.getElementById('imagePreview');
     preview.innerHTML = '';
 
-    const files = event.target.files;
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.type.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.classList.add('preview-image');
-        img.file = file;
-        preview.appendChild(img);
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.classList.add('preview-image');
+      img.file = file;
+      preview.appendChild(img);
 
-        const reader = new FileReader();
-        reader.onload = (function(aImg) {
-          return function(e) {
-            aImg.src = e.target.result;
-          };
-        })(img);
-        reader.readAsDataURL(file);
-      }
+      const reader = new FileReader();
+      reader.onload = (function(aImg) {
+        return function(e) {
+          aImg.src = e.target.result;
+        };
+      })(img);
+      reader.readAsDataURL(file);
     }
   }
   </script>

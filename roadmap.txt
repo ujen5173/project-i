@@ -1,0 +1,19 @@
+room quanity
+room status
+listing with date
+payment
+user profile with contact info.
+email for confirmation or decline
+
+
+
+note
+no of available room type listing with dates 
+✅ remove dollar 
+✅ status listing enable or disable 
+✅ booking display which room 
+✅ esewa  payment 
+✅ add phone number for resistration
+✅ user profile 
+✅ host profile 
+email confirmation send for user

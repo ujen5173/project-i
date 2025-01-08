@@ -1,6 +1,7 @@
 <?php
+
 session_start();
-require_once __DIR__ . '/db/config.php';
+require_once '../db/config.php';
 
 // Function to get user details
 function getUserDetails($conn, $user_id) {
@@ -17,23 +18,65 @@ $userDetails = null;
 
 if ($isLoggedIn) {
     $userDetails = getUserDetails($conn, $_SESSION['user_id']);
-}
+} 
 
-$stmt = $conn->prepare("
-    SELECT 
-        l.*,
-        u.name AS host_name 
-    FROM listings l
-    JOIN users u ON l.host_id = u.id
-    WHERE l.status = 'active'
-    ORDER BY l.created_at DESC 
-    LIMIT 4
-");
+$host_id = $_SESSION['user_id'];
 
+// Fetch all listings for the host
+$listings_query = "SELECT id, title, room_type, quantity, price, status 
+                  FROM listings 
+                  WHERE host_id = ?";
+$stmt = $conn->prepare($listings_query);
+$stmt->bind_param("i", $host_id);
 $stmt->execute();
-$featuredListings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+$listings_result = $stmt->get_result();
+$listings = $listings_result->fetch_all(MYSQLI_ASSOC);
 
+// Handle availability check
+$availability_data = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])) {
+    $listing_id = $_POST['listing_id'];
+    $check_in = $_POST['check_in'];
+    $check_out = $_POST['check_out'];
+    
+    // Get total rooms booked for the date range
+    $bookings_query = "SELECT COUNT(*) as booked_rooms, l.quantity
+                      FROM bookings b
+                      JOIN listings l ON b.listing_id = l.id
+                      WHERE b.listing_id = ?
+                      AND ((check_in BETWEEN ? AND ?) 
+                      OR (check_out BETWEEN ? AND ?)
+                      OR (check_in <= ? AND check_out >= ?))
+                      GROUP BY l.id";
+    
+    $stmt = $conn->prepare($bookings_query);
+    $stmt->bind_param("issssss", $listing_id, $check_in, $check_out, 
+                      $check_in, $check_out, $check_in, $check_out);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $booking_data = $result->fetch_assoc();
+    
+    // Get listing details
+    $listing_query = "SELECT title, quantity FROM listings WHERE id = ?";
+    $stmt = $conn->prepare($listing_query);
+    $stmt->bind_param("i", $listing_id);
+    $stmt->execute();
+    $listing_result = $stmt->get_result();
+    $listing_data = $listing_result->fetch_assoc();
+    
+    $booked_rooms = $booking_data['booked_rooms'] ?? 0;
+    $total_rooms = $listing_data['quantity'];
+    $available_rooms = $total_rooms - $booked_rooms;
+    
+    $availability_data = [
+        'listing_title' => $listing_data['title'],
+        'total_rooms' => $total_rooms,
+        'booked_rooms' => $booked_rooms,
+        'available_rooms' => $available_rooms,
+        'check_in' => $check_in,
+        'check_out' => $check_out
+    ];
+}
 ?>
 
 <!DOCTYPE html>
@@ -66,7 +109,7 @@ $stmt->close();
     rel="stylesheet">
 
 
-  <title>Document</title>
+  <title>Check Availability - Host Dashboard</title>
 
   <!-- Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -79,7 +122,8 @@ $stmt->close();
 
 </head>
 
-<body>
+<body class="bg-gray-50">
+
   <header class="bg-white border-b border-slate-200">
     <nav class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16 w-full">
@@ -187,196 +231,98 @@ $stmt->close();
       </div>
     </nav>
   </header>
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Check Property Availability</h1>
 
-  <main class="hero-section">
-    <div class="hero-section__wrapper container">
-      <div class="overlay"></div>
-      <div class="hero-section-content">
-        <h1 class="hero-section__title">
-          Discover Your Perfect Stay, <br /> Anywhere, Anytime
-        </h1>
-        <p class="hero-section__description">
-          Explore unique accommodations around the world, tailored to your style and budget. <br /> Book with ease, stay
-          with
-          joy.
-        </p>
-        <form class="booking-form">
+    <!-- Availability Check Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <form method="POST" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Select Property</label>
+          <select name="listing_id" required
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+            <option value="">Select a property</option>
+            <?php foreach ($listings as $listing): ?>
+            <option value="<?= htmlspecialchars($listing['id']) ?>">
+              <?= htmlspecialchars($listing['title']) ?>
+              (<?= htmlspecialchars($listing['room_type']) ?> -
+              <?= $listing['quantity'] ?> units)
+            </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label for="check-in">Check in</label>
-            <input type="date" id="check-in" placeholder="11-17-2024">
+            <label class="block text-sm font-medium text-gray-700">Check-in Date</label>
+            <input type="date" name="check_in" required min="<?= date('Y-m-d') ?>"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
           </div>
           <div>
-            <label for="check-out">Check out</label>
-            <input type="date" id="check-out" placeholder="11-20-2024">
+            <label class="block text-sm font-medium text-gray-700">Check-out Date</label>
+            <input type="date" name="check_out" required min="<?= date('Y-m-d') ?>"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
           </div>
-          <div>
-            <label for="guests">Guests</label>
-            <input type="number" id="guests" min="1" max="10" style="width: 100%;" placeholder="4 person">
-          </div>
-          <button class="btn">Search</button>
-        </form>
-      </div>
+        </div>
+
+        <button type="submit" name="check_availability"
+          class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+          Check Availability
+        </button>
+      </form>
     </div>
-  </main>
 
-  <section class="featured-listings">
-    <div class="featured-listings__wrapper container">
-      <h1 class="featured-listings__title">
-        Explore Featured Listings
-      </h1>
-
-      <div class="featured-listings__list grid grid-cols-4 gap-4">
-        <?php if (empty($featuredListings)): ?>
-        <div class="col-span-4 text-center py-8">
-          <p class="text-slate-600 text-lg">No listings available at the moment.</p>
-          <p class="text-slate-500 mt-2">Check back later for new properties!</p>
+    <!-- Availability Results -->
+    <?php if ($availability_data): ?>
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-semibold mb-4">Availability Results for
+        <span class="text-red-600 underline">
+          <?= htmlspecialchars($availability_data['listing_title']) ?>
+        </span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <p class="text-sm text-gray-500">Total Units</p>
+          <p class="text-2xl font-bold"><?= $availability_data['total_rooms'] ?></p>
         </div>
-        <?php else: ?>
-        <?php foreach ($featuredListings as $listing): ?>
-        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>">
-          <div class="booking-card">
-            <div class="booking-image">
-              <img src="/stayHaven<?php echo $listing['image_url'] ?? "/images/placeholder-image.jpg" ?>"
-                alt="<?php echo htmlspecialchars($listing['title']); ?>">
-            </div>
-
-            <div class="booking-content">
-              <h3 class="h-14"><?php echo htmlspecialchars($listing['title']); ?></h3>
-
-              <div class="listing-details space-y-2">
-                <div class="detail-item space-x-2">
-                  <i data-lucide="map-pin"></i>
-                  <span><?php echo htmlspecialchars($listing['location']); ?></span>
-                </div>
-
-                <div class="detail-item space-x-2">
-                  <i data-lucide="user"></i>
-                  <span>Host: <?php echo htmlspecialchars($listing['host_name']); ?></span>
-                </div>
-
-
-                <div class="detail-item space-x-2">
-                  <i data-lucide="credit-card"></i>
-                  <span>Total: NPR.<?php echo number_format($listing['price'], 2); ?></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </a>
-        <?php endforeach; ?>
-        <?php endif; ?>
-      </div>
-    </div>
-  </section>
-
-  <footer class="footer">
-    <div class="footer__wrapper container">
-      <div class="footer_grid">
-        <div class="grid-child child-lg">
-          <h1 class="footer_logo">
-            StayHaven
-          </h1>
-          <p class="footer_description">
-            Explore unique accommodations around the world, tailored to your style and budget. Book with ease, stay with
-            joy.
-          </p>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <p class="text-sm text-gray-500">Booked Units</p>
+          <p class="text-2xl font-bold text-red-600"><?= $availability_data['booked_rooms'] ?></p>
         </div>
-        <div class="grid-child">
-          <h1 class="footer_nav_list_header">
-            Company
-          </h1>
-          <ul>
-            <li>About</li>
-            <li>Privacy Policy</li>
-            <li>Terms and Conditions</li>
-          </ul>
-        </div>
-        <div class="grid-child">
-          <h1 class="footer_nav_list_header">
-            Links
-          </h1>
-          <ul>
-            <li>Listings</li>
-            <li>Orders</li>
-          </ul>
-          </ul>
-        </div>
-        <div class="grid-child">
-          <h1 class="footer_logo">
-            Contact
-          </h1>
-          <p class="footer_description">
-            stayhaven@company.me
-          </p>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <p class="text-sm text-gray-500">Available Units</p>
+          <p class="text-2xl font-bold text-green-600"><?= $availability_data['available_rooms'] ?></p>
         </div>
       </div>
+      <div class="mt-4 text-sm text-gray-600">
+        <p>For dates: <?= date('F j, Y', strtotime($availability_data['check_in'])) ?>
+          to <?= date('F j, Y', strtotime($availability_data['check_out'])) ?></p>
+      </div>
     </div>
-    <div class="copyright__wrapper">
-      <p class="copyright">
-        &copy; 2024 StayHaven. All rights reserved.
-      </p>
-    </div>
-  </footer>
+    <?php endif; ?>
+  </div>
+
+  <script>
+  // Add client-side validation for dates
+  document.addEventListener('DOMContentLoaded', function() {
+    const checkInInput = document.querySelector('input[name="check_in"]');
+    const checkOutInput = document.querySelector('input[name="check_out"]');
+
+    checkInInput.addEventListener('change', function() {
+      checkOutInput.min = this.value;
+    });
+
+    checkOutInput.addEventListener('change', function() {
+      if (this.value < checkInInput.value) {
+        this.value = checkInInput.value;
+      }
+    });
+  });
+  </script>
+
+  <script>
+  lucide.createIcons();
+  </script>
 </body>
-
-<script>
-// Add to your homepage JavaScript
-document.querySelector('.booking-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-
-  const checkIn = document.getElementById('check-in').value;
-  const checkOut = document.getElementById('check-out').value;
-  const guests = document.getElementById('guests').value;
-
-  const searchParams = new URLSearchParams({
-    check_in: checkIn,
-    check_out: checkOut,
-    guests: guests
-  });
-
-  window.location.href = `/stayHaven/search.php?${searchParams.toString()}`;
-});
-
-// Date validation
-document.getElementById('check-in').addEventListener('change', function() {
-  const checkOut = document.getElementById('check-out');
-  checkOut.min = this.value;
-});
-
-document.getElementById('check-out').addEventListener('change', function() {
-  const checkIn = document.getElementById('check-in');
-  checkIn.max = this.value;
-});
-
-// Set min date to today
-const today = new Date().toISOString().split('T')[0];
-document.getElementById('check-in').min = today;
-document.getElementById('check-out').min = today;
-</script>
-
-<script>
-// Toggle dropdown menu
-const userMenu = document.getElementById('userMenu');
-const dropdownMenu = document.getElementById('dropdownMenu');
-
-if (userMenu) {
-  userMenu.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdownMenu.classList.toggle('active');
-  });
-
-  // Close dropdown when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!userMenu.contains(e.target)) {
-      dropdownMenu.classList.remove('active');
-    }
-  });
-}
-</script>
-
-<script>
-lucide.createIcons();
-</script>
 
 </html>

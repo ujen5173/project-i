@@ -2,42 +2,22 @@
 session_start();
 require_once __DIR__ . '/db/config.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
+// Function to get user details
+function getUserDetails($conn, $user_id) {
+    $stmt = $conn->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result->fetch_assoc();
 }
 
-$user_id = $_SESSION['user_id'];
 // Check if user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
 $userDetails = null;
 
 if ($isLoggedIn) {
-    $stmt = $conn->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
-    $stmt->bind_param("i", $_SESSION['user_id']);
-    $stmt->execute();
-    $userDetails = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $userDetails = getUserDetails($conn, $_SESSION['user_id']);
 }
-
-$stmt = $conn->prepare("
-    SELECT 
-        b.*,
-        l.title,
-        l.image_url,
-        l.location,
-        l.price,
-        u.name as host_name
-    FROM bookings b
-    JOIN listings l ON b.listing_id = l.id
-    JOIN users u ON l.host_id = u.id
-    WHERE b.guest_id = ?
-    ORDER BY b.check_in DESC
-");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -46,17 +26,44 @@ $stmt->close();
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Bookings - StayHaven</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lato Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
+    rel="stylesheet">
+
+  <!-- Merriweather -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
+    rel="stylesheet">
+
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kalam:wght@300;400;700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Permanent+Marker&display=swap"
+    rel="stylesheet">
+
+
+  <title>Document</title>
+
+  <!-- Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/bookings.css">
   <link rel="stylesheet" href="css/index.css">
+  <script src="//unpkg.com/alpinejs" defer></script>
+
 </head>
 
-<body class="bg-slate-50">
+<body>
   <header class="bg-white border-b border-slate-200">
     <nav class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16 w-full">
@@ -164,79 +171,87 @@ $stmt->close();
       </div>
     </nav>
   </header>
-
-  <div class="h-10"></div>
-
-  <main class="container mx-auto px-4 py-8">
-    <?php if (empty($bookings)): ?>
-    <div class="empty-state">
-      <i data-lucide="calendar-x"></i>
-      <h3>No bookings yet</h3>
-      <p>Start exploring amazing places to stay!</p>
-      <a href="listings.php" class="btn-primary">Browse Listings</a>
-    </div>
-
-    <?php else: ?>
-    <div class="bookings-grid">
-      <?php foreach ($bookings as $booking): ?>
-      <a href="/stayHaven/details.php?id=<?php echo $booking['listing_id']; ?>">
-
-        <div class="booking-card">
-          <div class="booking-image">
-            <img src="/stayHaven<?php echo htmlspecialchars($booking['image_url']); ?>"
-              alt="<?php echo htmlspecialchars($booking['title']); ?>">
-
+  <div class="container py-20">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card border-danger">
+          <div class="card-header bg-danger text-white">
+            <h3 class="mb-0 text-center">Booking Failed</h3>
           </div>
-
-          <div class="booking-content">
-            <h3><?php echo htmlspecialchars($booking['title']); ?></h3>
-
-            <div class="booking-details">
-              <div class="detail-item">
-                <i data-lucide="map-pin"></i>
-                <span><?php echo htmlspecialchars($booking['location']); ?></span>
-              </div>
-
-              <div class="detail-item">
-                <i data-lucide="user"></i>
-                <span>Host: <?php echo htmlspecialchars($booking['host_name']); ?></span>
-              </div>
-
-              <div class="detail-item">
-                <i data-lucide="calendar"></i>
-                <span>
-                  <?php 
-                    $check_in = new DateTime($booking['check_in']);
-                    $check_out = new DateTime($booking['check_out']);
-                    echo $check_in->format('M d, Y') . ' - ' . $check_out->format('M d, Y');
-                ?>
-                </span>
-              </div>
-
-              <div class="detail-item">
-                <i data-lucide="credit-card"></i>
-                <span>Total: NPR.<?php echo number_format($booking['total_price'], 2); ?></span>
-              </div>
+          <div class="card-body">
+            <div class="text-center mb-8">
+              <i class="fas fa-times-circle text-danger" style="font-size: 4rem;"></i>
             </div>
+            <h4 class="text-center mb-8">Sorry, there was a problem processing your booking.</h4>
+            <div>
 
-            <?php if ($booking['payment_method'] === 'cash'): ?>
-            <div class="payment-info">
-              <i data-lucide="info"></i>
-              <p>Please prepare cash payment upon arrival</p>
+              <p class="text-center">This could be due to:</p>
+              <ul class="list-disc mb-8 block w-fit mx-auto text-center">
+                <li>Selected time slot is no longer available</li>
+                <li>System error during booking process</li>
+                <li>Invalid booking information</li>
+              </ul>
             </div>
-            <?php endif; ?>
+            <div class="text-center mt-4">
+              <a href="index.php" class="btn btn-secondary">Return to Homepage</a>
+            </div>
           </div>
         </div>
-      </a>
-      <?php endforeach; ?>
+      </div>
     </div>
-    <?php endif; ?>
-  </main>
+  </div>
 
-  <script>
-  lucide.createIcons();
-  </script>
-  <script src="//unpkg.com/alpinejs" defer></script>
+  <footer class="footer">
+    <div class="footer__wrapper container">
+      <div class="footer_grid">
+        <div class="grid-child child-lg">
+          <h1 class="footer_logo">
+            StayHaven
+          </h1>
+          <p class="footer_description">
+            Explore unique accommodations around the world, tailored to your style and budget. Book with ease, stay with
+            joy.
+          </p>
+        </div>
+        <div class="grid-child">
+          <h1 class="footer_nav_list_header">
+            Company
+          </h1>
+          <ul>
+            <li>About</li>
+            <li>Privacy Policy</li>
+            <li>Terms and Conditions</li>
+          </ul>
+        </div>
+        <div class="grid-child">
+          <h1 class="footer_nav_list_header">
+            Links
+          </h1>
+          <ul>
+            <li>Listings</li>
+            <li>Orders</li>
+          </ul>
+          </ul>
+        </div>
+        <div class="grid-child">
+          <h1 class="footer_logo">
+            Contact
+          </h1>
+          <p class="footer_description">
+            stayhaven@company.me
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="copyright__wrapper">
+      <p class="copyright">
+        &copy; 2024 StayHaven. All rights reserved.
+      </p>
+    </div>
+  </footer>
 </body>
+<script>
+lucide.createIcons();
+</script>
 
 </html>

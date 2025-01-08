@@ -9,24 +9,41 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'host') {
 }
 
 $host_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("
-    SELECT 
-        (SELECT COUNT(*) FROM listings WHERE host_id = ?) AS total_listings,
-        (SELECT COUNT(*) FROM bookings b JOIN listings l ON b.listing_id = l.id WHERE l.host_id = ?) AS total_bookings,
-        (SELECT COALESCE(SUM(total_price), 0) FROM bookings b JOIN listings l ON b.listing_id = l.id WHERE l.host_id = ?) AS total_revenue
-");
-$stmt->bind_param("iii", $host_id, $host_id, $host_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$stats = $result->fetch_assoc();
-$stmt->close();
 
-// Fetch all listings with their booking counts and total revenue
+// Function to handle SQL errors
+function handleSQLError($conn, $query) {
+    error_log("MySQL Error: " . $conn->error . "\nQuery: " . $query);
+    return false;
+}
+
+// Get dashboard statistics
+$stats_query = "
+    SELECT 
+        (SELECT COUNT(*) FROM listings WHERE host_id = ?) as total_listings,
+        (SELECT COUNT(*) FROM bookings b 
+         INNER JOIN listings l ON b.listing_id = l.id 
+         WHERE l.host_id = ?) as total_bookings,
+        (SELECT COALESCE(SUM(total_price), 0) FROM bookings b 
+         INNER JOIN listings l ON b.listing_id = l.id 
+         WHERE l.host_id = ?) as total_revenue";
+
+$stmt = $conn->prepare($stats_query);
+if (!$stmt) {
+    handleSQLError($conn, $stats_query);
+    $stats = ['total_listings' => 0, 'total_bookings' => 0, 'total_revenue' => 0];
+} else {
+    $stmt->bind_param("iii", $host_id, $host_id, $host_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stats = $result->fetch_assoc();
+    $stmt->close();
+}
+
+// Fetch listings with booking information
 $stmt = $conn->prepare("
    SELECT 
        l.*,
-       COUNT(DISTINCT b.id) as booking_count,
-       COUNT(CASE WHEN b.status = 'confirmed' THEN 1 END) as total_sales,
+       COUNT(DISTINCT b.id) as booking_count, 
        MAX(b.created_at) as last_booking_date
    FROM listings l
    LEFT JOIN bookings b ON l.id = b.listing_id
@@ -39,25 +56,32 @@ $stmt->execute();
 $listings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-$stmt = $conn->prepare("
+// Fetch daily revenue data
+$daily_query = "
     SELECT 
         DATE(b.created_at) as date,
         DATE_FORMAT(b.created_at, '%a, %b %d') as date_formatted,
         COUNT(*) as booking_count,
         COALESCE(SUM(b.total_price), 0) as revenue
     FROM bookings b
-    JOIN listings l ON b.listing_id = l.id
+    INNER JOIN listings l ON b.listing_id = l.id
     WHERE l.host_id = ?
     AND b.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
     GROUP BY DATE(b.created_at)
-    ORDER BY date ASC
-");
-$stmt->bind_param("i", $host_id);
-$stmt->execute();
-$daily_data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+    ORDER BY date ASC";
 
-// Fill in any missing days with zero values
+$stmt = $conn->prepare($daily_query);
+if (!$stmt) {
+    handleSQLError($conn, $daily_query);
+    $daily_data = [];
+} else {
+    $stmt->bind_param("i", $host_id);
+    $stmt->execute();
+    $daily_data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+}
+
+// Fill in missing days with zero values
 $daily_revenue = [];
 for ($i = 6; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
@@ -86,7 +110,6 @@ for ($i = 6; $i >= 0; $i--) {
         ];
     }
 }
-
  
 ?>
 
@@ -139,7 +162,7 @@ for ($i = 6; $i >= 0; $i--) {
       <nav>
         <ul class="space-y-2">
           <li>
-            <a href="#" class="sidebar-link flex active items-center px-4 py-3 text-gray-700 rounded-lg">
+            <a href="index.php" class="sidebar-link flex active items-center px-4 py-3 text-gray-700 rounded-lg">
               <svg xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px;" width="18" height="20"
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" class="lucide lucide-layout-dashboard">
@@ -152,6 +175,20 @@ for ($i = 6; $i >= 0; $i--) {
             </a>
           </li>
           <li>
+            <a href="check-available.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-calendar-check">
+                <path d="M8 2v4" />
+                <path d="M16 2v4" />
+                <rect width="18" height="18" x="3" y="4" rx="2" />
+                <path d="M3 10h18" />
+                <path d="m9 16 2 2 4-4" />
+              </svg>
+              Check Availability
+            </a>
+          </li>
+          <li>
             <a href="add_listing.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
               <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -160,7 +197,7 @@ for ($i = 6; $i >= 0; $i--) {
             </a>
           </li>
           <li>
-            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+            <a href="bookings.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
               <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -169,7 +206,7 @@ for ($i = 6; $i >= 0; $i--) {
             </a>
           </li>
           <li>
-            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+            <a href="/stayhaven/logout.php" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
               <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -230,7 +267,7 @@ for ($i = 6; $i >= 0; $i--) {
               <div>
                 <p class="text-gray-500 text-sm">Total Revenue</p>
                 <h3 class="text-2xl font-bold text-gray-900 mt-1">
-                  $<?php echo number_format($stats['total_revenue'], 2); ?></h3>
+                  NPR.<?php echo number_format($stats['total_revenue'], 2); ?></h3>
               </div>
               <div class="p-3 bg-red-100 rounded-lg">
                 <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,7 +304,6 @@ for ($i = 6; $i >= 0; $i--) {
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bookings
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions
                   </th>
@@ -284,25 +320,29 @@ for ($i = 6; $i >= 0; $i--) {
                     <div class="text-sm text-gray-500"><?php echo htmlspecialchars($listing['location']); ?></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">$<?php echo number_format($listing['price'], 2); ?></div>
+                    <div class="text-sm text-gray-900">NPR.<?php echo number_format($listing['price'], 2); ?></div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-900"><?php echo number_format($listing['booking_count']); ?></div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900"><?php echo number_format($listing['total_sales']); ?></div>
-                  </td>
+
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
-                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      Active
+                      class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        <?php echo $listing['status'] === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
+                      <?php echo ucfirst(htmlspecialchars($listing['status'])); ?>
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <a href="/stayHaven/host_dashboard/add_listing.php?edit=true&id=<?php echo $listing['id'] ?>"
                       class="text-red-600 hover:text-red-900 mr-3">Edit</a>
                     <a href="#" data-listing-id="<?php echo htmlspecialchars($listing['id']); ?>"
-                      class="delete-listing text-red-600 hover:text-red-900">Delete</a>
+                      class="delete-listing text-red-600 hover:text-red-900 mr-3">Delete</a>
+                    <a href="#" data-listing-id="<?php echo htmlspecialchars($listing['id']); ?>"
+                      data-current-status="<?php echo htmlspecialchars($listing['status']); ?>"
+                      class="toggle-status text-red-600 hover:text-red-900">
+                      <?php echo $listing['status'] === 'active' ? 'Make Unavailable' : 'Make Available'; ?>
+                    </a>
                   </td>
                 </tr>
                 <?php endforeach; ?>
@@ -354,11 +394,61 @@ for ($i = 6; $i >= 0; $i--) {
           });
       });
     });
+
+    // Add click event listeners to all toggle status buttons
+    document.querySelectorAll('.toggle-status').forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        const listingId = this.dataset.listingId;
+        const currentStatus = this.dataset.currentStatus;
+        const newStatus = currentStatus === 'active' ? 'unavailable' : 'active';
+        const confirmMessage = `Are you sure you want to make this listing ${newStatus}?`;
+
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+
+        fetch('toggle_listing_status.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `listing_id=${listingId}&status=${newStatus}`
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Update the button text and status badge
+              this.textContent = newStatus === 'active' ? 'Make Unavailable' : 'Make Available';
+              this.dataset.currentStatus = newStatus;
+
+              // Update the status badge
+              const statusBadge = this.closest('tr').querySelector('.rounded-full');
+              statusBadge.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+              statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        newStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`;
+
+              alert(`Listing status updated to ${newStatus}`);
+            } else {
+              throw new Error(data.error || 'Failed to update listing status');
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating listing status: ' + error.message);
+          });
+      });
+    });
   });
   </script>
   <script>
   const ctx = document.getElementById('revenueChart').getContext('2d');
   const dailyData = <?php echo json_encode($daily_revenue); ?>;
+
+  // Check if we have any non-zero values
+  const hasData = dailyData.some(data => data.revenue > 0);
 
   new Chart(ctx, {
     type: 'line',
@@ -382,7 +472,8 @@ for ($i = 6; $i >= 0; $i--) {
         tooltip: {
           callbacks: {
             label: function(context) {
-              return `Revenue: $${context.raw.toFixed(2)}`;
+              let value = context.parsed.y;
+              return `Revenue: NPR.${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             }
           }
         }
@@ -390,15 +481,21 @@ for ($i = 6; $i >= 0; $i--) {
       scales: {
         y: {
           beginAtZero: true,
+          min: 0,
+          max: hasData ? undefined : 1000, // Set max to 1000 if no data
           grid: {
             display: true,
             color: 'rgba(0, 0, 0, 0.05)'
           },
           ticks: {
             callback: function(value) {
-              return '$' + value;
+              return 'NPR.' + value.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              });
             }
-          }
+          },
+          suggestedMin: hasData ? undefined : 100 // Set min to 100 if no data
         },
         x: {
           grid: {

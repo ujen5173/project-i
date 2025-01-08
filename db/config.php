@@ -3,7 +3,7 @@
 $db_host = 'localhost';     // Usually localhost
 $db_user = 'root'; // Your MySQL username
 $db_pass = ''; // Your MySQL password
-$db_name = 'ujen-stayhaven';   // Your database name
+$db_name = 'stayhaven';   // Your database name
 
 // Create connection
 $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);

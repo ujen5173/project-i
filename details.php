@@ -5,10 +5,14 @@ require_once __DIR__ . '/db/config.php';
 // Fetch room details
 $room_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $stmt = $conn->prepare("SELECT l.*, 
-    GROUP_CONCAT(a.name) as amenities 
+    GROUP_CONCAT(a.name) as amenities,
+    u.name as host_name,
+    u.email as host_email,
+    u.created_at as host_joined 
     FROM listings l
     LEFT JOIN listing_amenities la ON l.id = la.listing_id
     LEFT JOIN amenities a ON la.amenity_id = a.id
+    LEFT JOIN users u ON l.host_id = u.id
     WHERE l.id = ?
     GROUP BY l.id");
 $stmt->bind_param("i", $room_id);
@@ -27,7 +31,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
 $userDetails = null;
 
 if ($isLoggedIn) {
-    $stmt = $conn->prepare("SELECT name, email FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email,role FROM users WHERE id = ?");
     $stmt->bind_param("i", $_SESSION['user_id']);
     $stmt->execute();
     $userDetails = $stmt->get_result()->fetch_assoc();
@@ -90,6 +94,7 @@ $stmt->close();
 
   <!-- CSS -->
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/search.css">
   <link rel="stylesheet" href="css/index.css">
   <link rel="stylesheet" href="css/room-detail.css">
 </head>
@@ -117,16 +122,25 @@ $stmt->close();
 
         <?php if ($isLoggedIn): ?>
         <div class="relative" x-data="{ open: false }">
-          <button @click="open = !open" @click.outside="open = false"
-            class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
-            <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center">
-              <span class="text-white font-medium">
-                <?php echo substr($userDetails['name'], 0, 1); ?>
-              </span>
-            </div>
-            <span class="text-slate-700"><?php echo $userDetails['name']; ?></span>
-            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-          </button>
+          <div class="flex items-center gap-2">
+            <?php if ($userDetails['role'] === 'host'): ?>
+            <a href="/stayhaven/host_dashboard/index.php"
+              class="bg-rose-600 visited:text-white hover:bg-rose-700 text-white px-4 py-2 rounded-lg transition-colors">
+              Dashboard
+            </a>
+            <?php endif; ?>
+
+            <button @click="open = !open" @click.outside="open = false"
+              class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
+              <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center">
+                <span class="text-white font-medium">
+                  <?php echo substr($userDetails['name'], 0, 1); ?>
+                </span>
+              </div>
+              <span class="text-slate-700"><?php echo $userDetails['name']; ?></span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+          </div>
 
           <div x-show="open" x-transition:enter="transition ease-out duration-100"
             x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
@@ -138,6 +152,7 @@ $stmt->close();
               <p class="text-sm font-medium truncate"><?php echo $userDetails['email']; ?></p>
             </div>
 
+            <?php if ($userDetails['role'] !== 'host'): ?>
             <a href="/stayhaven/bookings.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="calendar" class="w-4 h-4"></i>
@@ -149,8 +164,22 @@ $stmt->close();
               <i data-lucide="heart" class="w-4 h-4"></i>
               Favorites
             </a>
+            <?php endif; ?>
 
-            <a href="/stayhaven/settings.php"
+            <?php if ($userDetails['role'] === 'host'): ?>
+            <a href="/stayhaven/user_profile.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+              Dashboard
+            </a>
+            <a href="/stayhaven/host-profile.php?id=<?php echo $userDetails['id']; ?>"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="user" class="w-4 h-4"></i>
+              Host Profile
+            </a>
+            <?php endif; ?>
+
+            <a href="/stayhaven/user_profile.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="settings" class="w-4 h-4"></i>
               Settings
@@ -169,7 +198,7 @@ $stmt->close();
           <a href="/stayhaven/login.php" class="text-slate-600 hover:text-slate-900">
             Login
           </a>
-          <a href="/stayhaven/sign-up.php"
+          <a href="/stayhaven/signup.php"
             class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg transition-colors">
             Register
           </a>
@@ -178,7 +207,6 @@ $stmt->close();
       </div>
     </nav>
   </header>
-
 
   <main class="room-detail-section">
     <div class="room-detail__wrapper container">
@@ -213,6 +241,13 @@ $stmt->close();
               <i style="width: 18px; height: 18px;" data-lucide="users"></i>
               Max <?php echo $room['max_guests']; ?> guests
             </div>
+            <?php if ($room['room_type'] !== 'Entire place'): ?>
+            <span class="dot"></span>
+            <div class="quantity">
+              <i style="width: 18px; height: 18px;" data-lucide="home-check"></i>
+              <?php echo $room['quantity']; ?> unit(s) available
+            </div>
+            <?php endif; ?>
           </div>
 
           <div class="room-description">
@@ -235,9 +270,36 @@ $stmt->close();
             </div>
           </div>
 
+          <div class="border-t border-slate-200 pt-8 mb-8">
+            <h3 class="text-xl font-semibold mb-4">
+              Hosted by
+              <a href="/stayhaven/host-profile.php?id=<?php echo $room['host_id']; ?>"
+                class="text-rose-600 hover:text-rose-700">
+                <?php echo htmlspecialchars($room['host_name']); ?>
+              </a>
+            </h3>
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 bg-rose-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span class="text-white font-medium text-lg">
+                  <?php echo substr($room['host_name'], 0, 1); ?>
+                </span>
+              </div>
+              <div>
+                <p class="text-slate-600 mb-2">
+                  <i data-lucide="calendar" class="w-4 h-4 inline-block mr-1"></i>
+                  Joined <?php echo date('F Y', strtotime($room['host_joined'])); ?>
+                </p>
+                <p class="text-slate-600">
+                  <i data-lucide="mail" class="w-4 h-4 inline-block mr-1"></i>
+                  Contact: <?php echo htmlspecialchars($room['host_email']); ?>
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div class="booking-section mb-4">
             <div class="price">
-              <strong>$<?php echo number_format($room['price'], 2); ?></strong> per night
+              <strong>NPR.<?php echo number_format($room['price'], 2); ?></strong> per night
             </div>
             <a href="booking-form.php?id=<?php echo $room_id; ?>" class="btn btn-primary">Book Now</a>
           </div>
@@ -276,37 +338,29 @@ $stmt->close();
       <?php else: ?>
       <div class="featurose-listings__list grid grid-cols-4 gap-4">
         <?php foreach ($similarListings as $listing): ?>
-        <a href="/stayHaven/details.php?id=<?php echo $listing['id'] ?>" class="featurose-listing">
-          <div class="featurose-listing__img">
-            <?php if ($listing['image_url']): ?>
-            <img src="/stayHaven/<?php echo htmlspecialchars($listing['image_url']); ?>"
-              alt="<?php echo htmlspecialchars($listing['title']); ?>" class="w-full h-full object-cover">
-            <?php else: ?>
-            <img src="https://via.placeholder.com/300" alt="Placeholder image" class="w-full h-full object-cover">
-            <?php endif; ?>
-          </div>
-          <div class="featurose-listing__content">
-            <h2 class="featurose-listing__title">
-              <?php echo htmlspecialchars($listing['title']); ?>
-            </h2>
-            <p class="listing-location" style="display: flex; align-items:center; gap: 6px; margin-bottom: 15px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-map-pin-check">
-                <path
-                  d="M19.43 12.935c.357-.967.57-1.955.57-2.935a8 8 0 0 0-16 0c0 4.993 5.539 10.193 7.399 11.799a1 1 0 0 0 1.202 0 32.197 32.197 0 0 0 .813-.728" />
-                <circle cx="12" cy="10" r="3" />
-                <path d="m16 18 2 2 4-4" />
-              </svg>
-              <?php echo htmlspecialchars($listing['location']); ?>
-            </p>
-            <div class="price">
-              <strong>
-                $<?php echo number_format($listing['price'], 2); ?>
-              </strong> per night
+        <article class="listing-card">
+          <a href="/stayHaven/details.php?id=<?php echo $listing['id']; ?>">
+            <div class="listing-image">
+              <img src="/stayHaven<?php echo $listing['image_url'] ?? "/images/placeholder-image.jpg" ?>"
+                alt="<?php echo htmlspecialchars($listing['title']); ?>">
             </div>
-          </div>
-        </a>
+            <div class="listing-content">
+              <h2 class="listing-title"><?php echo htmlspecialchars($listing['title']); ?></h2>
+              <p class="listing-location"><?php echo htmlspecialchars($listing['location']); ?></p>
+              <div class="listing-details">
+                <span class="room-type"><?php echo htmlspecialchars($listing['room_type']); ?></span>
+                <span class="guests">Up to <?php echo htmlspecialchars($listing['max_guests']); ?> guests</span>
+                <?php if ($listing['room_type'] !== 'Entire place'): ?>
+                <span class="quantity"><?php echo htmlspecialchars($listing['quantity']); ?> units available</span>
+                <?php endif; ?>
+              </div>
+              <div class="listing-footer">
+                <span class="price">NPR.<?php echo htmlspecialchars($listing['price']); ?> / night</span>
+                <a href="/stayHaven/details.php?id=<?php echo $listing['id']; ?>" class="view-btn">View Details</a>
+              </div>
+            </div>
+          </a>
+        </article>
         <?php endforeach; ?>
       </div>
       <?php endif; ?>

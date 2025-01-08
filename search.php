@@ -4,7 +4,7 @@ require_once 'db/config.php';
 
 // Function to get user details
 function getUserDetails($conn, $user_id) {
-    $stmt = $conn->prepare("SELECT name, email, role FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -104,7 +104,6 @@ if ($conn->error) {
 </head>
 
 <body class="bg-gray-50">
-
   <header class="bg-white border-b border-slate-200">
     <nav class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16 w-full">
@@ -127,16 +126,25 @@ if ($conn->error) {
 
         <?php if ($isLoggedIn): ?>
         <div class="relative" x-data="{ open: false }">
-          <button @click="open = !open" @click.outside="open = false"
-            class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
-            <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center">
-              <span class="text-white font-medium">
-                <?php echo substr($userDetails['name'], 0, 1); ?>
-              </span>
-            </div>
-            <span class="text-slate-700"><?php echo $userDetails['name']; ?></span>
-            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-          </button>
+          <div class="flex items-center gap-2">
+            <?php if ($userDetails['role'] === 'host'): ?>
+            <a href="/stayhaven/host_dashboard/index.php"
+              class="bg-rose-600 visited:text-white hover:bg-rose-700 text-white px-4 py-2 rounded-lg transition-colors">
+              Dashboard
+            </a>
+            <?php endif; ?>
+
+            <button @click="open = !open" @click.outside="open = false"
+              class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
+              <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center">
+                <span class="text-white font-medium">
+                  <?php echo substr($userDetails['name'], 0, 1); ?>
+                </span>
+              </div>
+              <span class="text-slate-700"><?php echo $userDetails['name']; ?></span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+          </div>
 
           <div x-show="open" x-transition:enter="transition ease-out duration-100"
             x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
@@ -148,6 +156,7 @@ if ($conn->error) {
               <p class="text-sm font-medium truncate"><?php echo $userDetails['email']; ?></p>
             </div>
 
+            <?php if ($userDetails['role'] !== 'host'): ?>
             <a href="/stayhaven/bookings.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="calendar" class="w-4 h-4"></i>
@@ -159,8 +168,22 @@ if ($conn->error) {
               <i data-lucide="heart" class="w-4 h-4"></i>
               Favorites
             </a>
+            <?php endif; ?>
 
-            <a href="/stayhaven/settings.php"
+            <?php if ($userDetails['role'] === 'host'): ?>
+            <a href="/stayhaven/user_profile.php"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+              Dashboard
+            </a>
+            <a href="/stayhaven/host-profile.php?id=<?php echo $userDetails['id']; ?>"
+              class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <i data-lucide="user" class="w-4 h-4"></i>
+              Host Profile
+            </a>
+            <?php endif; ?>
+
+            <a href="/stayhaven/user_profile.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="settings" class="w-4 h-4"></i>
               Settings
@@ -179,7 +202,7 @@ if ($conn->error) {
           <a href="/stayhaven/login.php" class="text-slate-600 hover:text-slate-900">
             Login
           </a>
-          <a href="/stayhaven/sign-up.php"
+          <a href="/stayhaven/signup.php"
             class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg transition-colors">
             Register
           </a>
@@ -267,8 +290,8 @@ if ($conn->error) {
               <span class="guests">Up to <?php echo htmlspecialchars($listing['max_guests']); ?> guests</span>
             </div>
             <div class="listing-footer">
-              <span class="price">$<?php echo htmlspecialchars($listing['price']); ?> / night</span>
-              <a href="listing.php?id=<?php echo $listing['id']; ?>" class="view-btn">View Details</a>
+              <span class="price">NPR.<?php echo htmlspecialchars($listing['price']); ?> / night</span>
+              <a href="details.php?id=<?php echo $listing['id']; ?>" class="view-btn">View Details</a>
             </div>
           </div>
         </a>

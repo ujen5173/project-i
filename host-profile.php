@@ -2,12 +2,8 @@
 session_start();
 require_once __DIR__ . '/db/config.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
-}
 
-$user_id = $_SESSION['user_id'];
+
 // Check if user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
 $userDetails = null;
@@ -20,23 +16,35 @@ if ($isLoggedIn) {
     $stmt->close();
 }
 
-$stmt = $conn->prepare("
-    SELECT 
-        b.*,
-        l.title,
-        l.image_url,
-        l.location,
-        l.price,
-        u.name as host_name
-    FROM bookings b
-    JOIN listings l ON b.listing_id = l.id
-    JOIN users u ON l.host_id = u.id
-    WHERE b.guest_id = ?
-    ORDER BY b.check_in DESC
-");
-$stmt->bind_param("i", $user_id);
+
+// Get host ID from URL
+$host_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+// Fetch host details
+$stmt = $conn->prepare("SELECT name, email, created_at, role FROM users WHERE id = ? AND role = 'host'");
+$stmt->bind_param("i", $host_id);
 $stmt->execute();
-$bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$host = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$host) {
+    header("Location: index.php");
+    exit();
+}
+
+// Fetch all listings by this host
+$stmt = $conn->prepare("SELECT l.*, 
+    (SELECT COUNT(*) FROM bookings WHERE listing_id = l.id) as total_bookings,
+    GROUP_CONCAT(a.name) as amenities
+    FROM listings l
+    LEFT JOIN listing_amenities la ON l.id = la.listing_id
+    LEFT JOIN amenities a ON la.amenity_id = a.id
+    WHERE l.host_id = ?
+    GROUP BY l.id
+    ORDER BY l.created_at DESC");
+$stmt->bind_param("i", $host_id);
+$stmt->execute();
+$listings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 ?>
 
@@ -46,17 +54,15 @@ $stmt->close();
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Bookings - StayHaven</title>
+  <title><?php echo htmlspecialchars($host['name']); ?>'s Listings - StayHaven</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="css/bookings.css">
   <link rel="stylesheet" href="css/index.css">
+  <script src="//unpkg.com/alpinejs" defer></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 
-<body class="bg-slate-50">
+<body>
   <header class="bg-white border-b border-slate-200">
     <nav class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16 w-full">
@@ -165,78 +171,124 @@ $stmt->close();
     </nav>
   </header>
 
-  <div class="h-10"></div>
-
   <main class="container mx-auto px-4 py-8">
-    <?php if (empty($bookings)): ?>
-    <div class="empty-state">
-      <i data-lucide="calendar-x"></i>
-      <h3>No bookings yet</h3>
-      <p>Start exploring amazing places to stay!</p>
-      <a href="listings.php" class="btn-primary">Browse Listings</a>
-    </div>
-
-    <?php else: ?>
-    <div class="bookings-grid">
-      <?php foreach ($bookings as $booking): ?>
-      <a href="/stayHaven/details.php?id=<?php echo $booking['listing_id']; ?>">
-
-        <div class="booking-card">
-          <div class="booking-image">
-            <img src="/stayHaven<?php echo htmlspecialchars($booking['image_url']); ?>"
-              alt="<?php echo htmlspecialchars($booking['title']); ?>">
-
+    <div class="max-w-5xl mx-auto">
+      <!-- Host Profile Header -->
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
+        <div class="flex items-start gap-6">
+          <div class="w-20 h-20 bg-rose-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <span class="text-white font-medium text-2xl">
+              <?php echo substr($host['name'], 0, 1); ?>
+            </span>
           </div>
-
-          <div class="booking-content">
-            <h3><?php echo htmlspecialchars($booking['title']); ?></h3>
-
-            <div class="booking-details">
-              <div class="detail-item">
-                <i data-lucide="map-pin"></i>
-                <span><?php echo htmlspecialchars($booking['location']); ?></span>
-              </div>
-
-              <div class="detail-item">
-                <i data-lucide="user"></i>
-                <span>Host: <?php echo htmlspecialchars($booking['host_name']); ?></span>
-              </div>
-
-              <div class="detail-item">
-                <i data-lucide="calendar"></i>
-                <span>
-                  <?php 
-                    $check_in = new DateTime($booking['check_in']);
-                    $check_out = new DateTime($booking['check_out']);
-                    echo $check_in->format('M d, Y') . ' - ' . $check_out->format('M d, Y');
-                ?>
-                </span>
-              </div>
-
-              <div class="detail-item">
-                <i data-lucide="credit-card"></i>
-                <span>Total: NPR.<?php echo number_format($booking['total_price'], 2); ?></span>
-              </div>
-            </div>
-
-            <?php if ($booking['payment_method'] === 'cash'): ?>
-            <div class="payment-info">
-              <i data-lucide="info"></i>
-              <p>Please prepare cash payment upon arrival</p>
-            </div>
-            <?php endif; ?>
+          <div>
+            <h1 class="text-2xl font-semibold mb-2"><?php echo htmlspecialchars($host['name']); ?></h1>
+            <p class="text-slate-600 mb-2">
+              <i data-lucide="calendar" class="w-4 h-4 inline-block mr-1"></i>
+              Host since <?php echo date('F Y', strtotime($host['created_at'])); ?>
+            </p>
+            <p class="text-slate-600">
+              <i data-lucide="home" class="w-4 h-4 inline-block mr-1"></i>
+              <?php echo count($listings); ?> properties listed
+            </p>
           </div>
         </div>
-      </a>
-      <?php endforeach; ?>
+      </div>
+
+      <!-- Listings Grid -->
+      <h2 class="text-xl font-semibold mb-6">Properties by <?php echo htmlspecialchars($host['name']); ?></h2>
+
+      <?php if (empty($listings)): ?>
+      <div class="text-center py-12 bg-slate-50 rounded-lg">
+        <i data-lucide="home" class="w-16 h-16 mx-auto text-slate-300 mb-4"></i>
+        <h3 class="text-lg font-medium text-slate-900 mb-2">No listings yet</h3>
+        <p class="text-slate-500">This host hasn't posted any properties yet.</p>
+      </div>
+      <?php else: ?>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <?php foreach ($listings as $listing): ?>
+        <a href="details.php?id=<?php echo $listing['id']; ?>"
+          class="block bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+          <div class="aspect-w-16 aspect-h-9">
+            <img src="/stayHaven<?php echo $listing['image_url'] ?? "/images/placeholder-image.jpg" ?>"
+              alt="<?php echo htmlspecialchars($listing['title']); ?>" class="w-full h-48 object-cover">
+          </div>
+          <div class="p-4">
+            <h3 class="font-semibold mb-2"><?php echo htmlspecialchars($listing['title']); ?></h3>
+            <p class="text-slate-600 mb-2">
+              <i data-lucide="map-pin" class="w-4 h-4 inline-block mr-1"></i>
+              <?php echo htmlspecialchars($listing['location']); ?>
+            </p>
+            <div class="flex items-center justify-between">
+              <p class="font-medium text-rose-600">
+                NPR <?php echo number_format($listing['price']); ?> / night
+              </p>
+              <p class="text-sm text-slate-500">
+                <?php echo $listing['total_bookings']; ?> bookings made
+              </p>
+            </div>
+          </div>
+        </a>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
     </div>
-    <?php endif; ?>
   </main>
+
+
+  <footer class="footer">
+    <div class="footer__wrapper container">
+      <div class="footer_grid">
+        <div class="grid-child child-lg">
+          <h1 class="footer_logo">
+            StayHaven
+          </h1>
+          <p class="footer_description">
+            Explore unique accommodations around the world, tailorose to your style and budget. Book with ease, stay
+            with
+            joy.
+          </p>
+        </div>
+        <div class="grid-child">
+          <h1 class="footer_nav_list_header">
+            Company
+          </h1>
+          <ul>
+            <li>About</li>
+            <li>Privacy Policy</li>
+            <li>Terms and Conditions</li>
+          </ul>
+        </div>
+        <div class="grid-child">
+          <h1 class="footer_nav_list_header">
+            Links
+          </h1>
+          <ul>
+            <li>Listings</li>
+            <li>Orders</li>
+          </ul>
+          </ul>
+        </div>
+        <div class="grid-child">
+          <h1 class="footer_logo">
+            Contact
+          </h1>
+          <p class="footer_description">
+            stayhaven@company.me
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="copyright__wrapper">
+      <p class="copyright">
+        &copy; 2024 StayHaven. All rights reserved.
+      </p>
+    </div>
+  </footer>
 
   <script>
   lucide.createIcons();
   </script>
-  <script src="//unpkg.com/alpinejs" defer></script>
 </body>
 
 </html>

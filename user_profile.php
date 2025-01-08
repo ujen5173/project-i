@@ -1,12 +1,77 @@
 <?php
-
-// header.php
 session_start();
-require_once __DIR__ . '/db/config.php';
+require_once 'db/config.php';
 
+$userId = $_SESSION['user_id'] ?? 1; // Using 1 for demo
+$success_message = '';
+$error_message = '';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+
+    // Phone number validation
+    $phone = preg_replace('/[^0-9]/', '', $phone); // Remove non-numeric characters
+    
+    // Validate phone number (assuming Nepal phone format: 10 digits)
+    if (strlen($phone) !== 10) {
+        $error_message = "Please enter a valid 10-digit phone number.";
+    } 
+    // Basic validation
+    elseif (empty($name) || empty($email)) {
+        $error_message = "Name and email are required fields.";
+    } 
+    else {
+        // Start transaction
+        $conn->begin_transaction();
+        try {
+            // Format phone number for display (e.g., 98XXXXXXXX)
+            $formatted_phone = $phone; // Remove the formatting with hyphens
+            
+            // Update basic info
+            $sql = "UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("sssi", $name, $email, $formatted_phone, $userId);
+            $stmt->execute();
+
+            // Handle password update if requested
+            if (!empty($_POST['current_password']) && !empty($_POST['new_password'])) {
+                // Verify current password
+                $sql = "SELECT password FROM users WHERE id = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("i", $userId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $user = $result->fetch_assoc();
+
+                if (password_verify($_POST['current_password'], $user['password'])) {
+                    if ($_POST['new_password'] === $_POST['confirm_password']) {
+                        $hashed_password = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+                        $sql = "UPDATE users SET password = ? WHERE id = ?";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("si", $hashed_password, $userId);
+                        $stmt->execute();
+                    } else {
+                        throw new Exception("New passwords do not match.");
+                    }
+                } else {
+                    throw new Exception("Current password is incorrect.");
+                }
+            }
+
+            $conn->commit();
+            $success_message = "Profile updated successfully!";
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error_message = $e->getMessage();
+        }
+    }
+}
 // Function to get user details
 function getUserDetails($conn, $user_id) {
-    $stmt = $conn->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, phone, role FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -21,83 +86,29 @@ if ($isLoggedIn) {
     $userDetails = getUserDetails($conn, $_SESSION['user_id']);
 }
 
-function getAllListings($conn) {
-    // Query to get listings with related information (removed reviews)
-    $query = "
-        SELECT 
-            l.*,
-            u.name as host_name,
-            u.email as host_email,
-            GROUP_CONCAT(DISTINCT a.name) as amenities
-        FROM listings l
-        LEFT JOIN users u ON l.host_id = u.id
-        LEFT JOIN listing_amenities la ON l.id = la.listing_id
-        LEFT JOIN amenities a ON la.amenity_id = a.id
-        WHERE l.status = 'active'
-        GROUP BY l.id
-        ORDER BY l.created_at DESC
-    ";
-
-    $result = $conn->query($query);
-
-    if (!$result) {
-        return [
-            'success' => false,
-            'error' => 'Failed to fetch listings: ' . $conn->error
-        ];
-    }
-
-    $listings = [];
-    while ($row = $result->fetch_assoc()) {
-        // Convert amenities string to array
-        $row['amenities'] = $row['amenities'] ? explode(',', $row['amenities']) : [];
-        
-        // Format prices
-        $row['price'] = number_format($row['price'], 2);
-        
-        $listings[] = $row;
-    }
-
-    return [
-        'success' => true,
-        'data' => $listings
-    ];
+// Clean phone number for display
+$phone_display = $userDetails['phone'];
+if (!empty($phone_display)) {
+    $phone_display = preg_replace('/[^0-9]/', '', $phone_display);
 }
- 
-$result = getAllListings($conn);
-
-// Check if we have valid data before proceeding
-if (!$result['success']) {
-    // Handle the error - you might want to show an error message
-    echo '<div class="container mx-auto px-4 py-8">';
-    echo '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">';
-    echo $result['error'];
-    echo '</div>';
-    echo '</div>';
-} else {
-    // Only show the listings section if we have data
-    ?>
-<?php
-}
-
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width='device-width', initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Settings - StayHaven</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="//unpkg.com/alpinejs" defer></script>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/index.css">
-  <link rel="stylesheet" href="css/search.css">
-  <link rel="stylesheet" href="css/room-detail.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="//unpkg.com/alpinejs" defer></script>
-
-  <title>All Listings | StayHaven</title>
+  <link rel="stylesheet" href="css/user_profile.css">
 </head>
 
-<body>
+<body class="bg-gray-50">
   <header class="bg-white border-b border-slate-200">
     <nav class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16 w-full">
@@ -206,95 +217,72 @@ if (!$result['success']) {
     </nav>
   </header>
 
+  <div class="container mx-auto px-4 py-8">
+    <div class="profile-card">
+      <h1 class="text-2xl font-semibold mb-6">Profile Settings</h1>
 
-  <section class="container py-10">
-    <h1 class="text-3xl font-semibold mb-4">
-      All Listings
-    </h1>
-
-    <?php if (empty($result['data'])): ?>
-    <div class="text-center py-8">
-      <p>No listings available at the moment.</p>
-    </div>
-    <?php else: ?>
-    <section class="listings-grid">
-      <?php foreach ($result['data'] as $listing): ?>
-      <article class="listing-card">
-        <a href="/stayHaven/details.php?id=<?php echo $listing['id']; ?>">
-          <div class="listing-image">
-            <img src="/stayHaven<?php echo $listing['image_url'] ?? "/images/placeholder-image.jpg" ?>"
-              alt="<?php echo htmlspecialchars($listing['title']); ?>">
-          </div>
-          <div class="listing-content">
-            <h2 class="listing-title"><?php echo htmlspecialchars($listing['title']); ?></h2>
-            <p class="listing-location"><?php echo htmlspecialchars($listing['location']); ?></p>
-            <div class="listing-details">
-              <span class="room-type"><?php echo htmlspecialchars($listing['room_type']); ?></span>
-              <span class="guests">Up to <?php echo htmlspecialchars($listing['max_guests']); ?> guests</span>
-              <?php if ($listing['room_type'] !== 'Entire place'): ?>
-              <span class="quantity"><?php echo htmlspecialchars($listing['quantity']); ?> units available</span>
-              <?php endif; ?>
-            </div>
-            <div class="listing-footer">
-              <span class="price">NPR.<?php echo htmlspecialchars($listing['price']); ?> / night</span>
-              <a href="/stayHaven/details.php?id=<?php echo $listing['id']; ?>" class="view-btn">View Details</a>
-            </div>
-          </div>
-        </a>
-      </article>
-      <?php endforeach; ?>
-    </section>
-    <?php endif; ?>
-  </section>
-
-  <footer class="footer">
-    <div class="footer__wrapper container">
-      <div class="footer_grid">
-        <div class="grid-child child-lg">
-          <h1 class="footer_logo">
-            StayHaven
-          </h1>
-          <p class="footer_description">
-            Explore unique accommodations around the world, tailored to your style and budget. Book with ease, stay with
-            joy.
-          </p>
-        </div>
-        <div class="grid-child">
-          <h1 class="footer_nav_list_header">
-            Company
-          </h1>
-          <ul>
-            <li>About</li>
-            <li>Privacy Policy</li>
-            <li>Terms and Conditions</li>
-          </ul>
-        </div>
-        <div class="grid-child">
-          <h1 class="footer_nav_list_header">
-            Links
-          </h1>
-          <ul>
-            <li>Listings</li>
-            <li>Orders</li>
-          </ul>
-          </ul>
-        </div>
-        <div class="grid-child">
-          <h1 class="footer_logo">
-            Contact
-          </h1>
-          <p class="footer_description">
-            stayhaven@company.me
-          </p>
-        </div>
+      <?php if ($success_message): ?>
+      <div class="success-alert">
+        <?= htmlspecialchars($success_message) ?>
       </div>
+      <?php endif; ?>
+
+      <?php if ($error_message): ?>
+      <div class="error-alert">
+        <?= htmlspecialchars($error_message) ?>
+      </div>
+      <?php endif; ?>
+
+      <form method="POST" action="" class="settings-form">
+        <!-- Profile Information Section -->
+        <div class="form-section">
+          <h2>Basic Information</h2>
+
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" value="<?= htmlspecialchars($userDetails['name']) ?>" required>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" readonly name="email" value="<?= htmlspecialchars($userDetails['email']) ?>">
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" value="<?= htmlspecialchars($phone_display) ?>" maxlength="10"
+              placeholder="98XXXXXXXX" title="Please enter a valid phone number">
+            <small class="text-gray-500">Format: 98XXXXXXXX</small>
+          </div>
+        </div>
+
+
+
+        <div class="form-actions">
+          <button type="submit" class="save-button">Save Changes</button>
+          <a href="index.php" class="cancel-button">Cancel</a>
+        </div>
+      </form>
     </div>
-    <div class="copyright__wrapper">
-      <p class="copyright">
-        &copy; 2024 StayHaven. All rights reserved.
-      </p>
-    </div>
-  </footer>
+  </div>
+
+  <script>
+  $(document).ready(function() {
+    // Phone number formatting - remove formatting logic since we want plain numbers
+    $('#phone').on('input', function() {
+      var number = $(this).val().replace(/[^\d]/g, '');
+      if (number.length <= 10) {
+        $(this).val(number);
+      }
+    });
+  });
+  </script>
+
+  <script>
+  lucide.createIcons();
+  </script>
+
+  <?php $conn->close(); ?>
 </body>
 
 </html>
