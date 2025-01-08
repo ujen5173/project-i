@@ -39,20 +39,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
     $check_in = $_POST['check_in'];
     $check_out = $_POST['check_out'];
     
-    // Get total rooms booked for the date range
-$bookings_query = "SELECT COUNT(*) as booked_rooms, l.quantity 
-                   FROM bookings b
-                   JOIN listings l ON b.listing_id = l.id 
-                   WHERE b.listing_id = ?
-                   AND b.status != 'cancelled'  
-                   AND check_in < ? 
-                   AND check_out > ?
-                   GROUP BY l.id";
-
-$stmt->bind_param("iss", $listing_id, $check_out, $check_in);
-
-    $stmt->bind_param("issssss", $listing_id, $check_in, $check_out, 
-                      $check_in, $check_out, $check_in, $check_out);
+    // Get total rooms booked for the date range - UPDATED QUERY
+    $bookings_query = "SELECT COALESCE(SUM(b.room_quantity), 0) as booked_rooms, l.quantity
+                      FROM listings l
+                      LEFT JOIN bookings b ON b.listing_id = l.id
+                      AND b.status = 'confirmed'  -- Only count confirmed bookings
+                      AND (
+                          (b.check_in <= ? AND b.check_out > ?) OR
+                          (b.check_in < ? AND b.check_out >= ?) OR
+                          (b.check_in >= ? AND b.check_out <= ?)
+                      )
+                      WHERE l.id = ?
+                      GROUP BY l.id, l.quantity";
+    
+    $stmt = $conn->prepare($bookings_query);
+    $stmt->bind_param("ssssss" . "i", 
+        $check_out, $check_in,  // For first condition
+        $check_out, $check_out, // For second condition
+        $check_in, $check_out,  // For third condition
+        $listing_id
+    );
     $stmt->execute();
     $result = $stmt->get_result();
     $booking_data = $result->fetch_assoc();
@@ -65,8 +71,8 @@ $stmt->bind_param("iss", $listing_id, $check_out, $check_in);
     $listing_result = $stmt->get_result();
     $listing_data = $listing_result->fetch_assoc();
     
-$booked_rooms = $booking_data ? ($booking_data['booked_rooms'] ?? 0) : 0;
-$total_rooms = $listing_data['quantity'] ?? 0;
+    $booked_rooms = $booking_data['booked_rooms'] ?? 0;
+    $total_rooms = $listing_data['quantity'];
     $available_rooms = $total_rooms - $booked_rooms;
     
     $availability_data = [
