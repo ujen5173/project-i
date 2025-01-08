@@ -6,27 +6,43 @@ require_once __DIR__ . '/db/config.php';
 require_once 'EsewaPayment.php';
 
 function validateBookingDates($conn, $listing_id, $check_in, $check_out, $requested_quantity) {
-    $stmt = $conn->prepare("
-        SELECT l.quantity - COALESCE(SUM(b.room_quantity), 0) as available_rooms
-        FROM listings l
-        LEFT JOIN bookings b ON l.id = b.listing_id
-        AND (
-            (b.check_in BETWEEN ? AND ?) OR
-            (b.check_out BETWEEN ? AND ?) OR
-            (? BETWEEN b.check_in AND b.check_out) OR
-            (? BETWEEN b.check_in AND b.check_out)
-        )
-        WHERE l.id = ?
-        GROUP BY l.id
-    ");
-    
-    $stmt->bind_param("ssssssi", $check_in, $check_out, $check_in, $check_out, $check_in, $check_out, $listing_id);
+    // First get the total rooms available for this listing
+    $stmt = $conn->prepare("SELECT quantity FROM listings WHERE id = ?");
+    $stmt->bind_param("i", $listing_id);
     $stmt->execute();
     $result = $stmt->get_result();
-    $availability = $result->fetch_assoc();
+    $listing = $result->fetch_assoc();
+    $total_rooms = $listing['quantity'];
+    $stmt->close();
+
+    // Then check existing bookings for the date range
+    $stmt = $conn->prepare("
+        SELECT SUM(room_quantity) as booked_rooms
+        FROM bookings
+        WHERE listing_id = ?
+        AND status != 'cancelled'
+        AND (
+            (check_in <= ? AND check_out >= ?) OR
+            (check_in <= ? AND check_out >= ?) OR
+            (? BETWEEN check_in AND check_out) OR
+            (? BETWEEN check_in AND check_out)
+        )
+    ");
+    
+    $stmt->bind_param("issssss", 
+        $listing_id,
+        $check_out, $check_in,
+        $check_in, $check_out,
+        $check_in, $check_out
+    );
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $bookings = $result->fetch_assoc();
+    $booked_rooms = $bookings['booked_rooms'] ?? 0;
     $stmt->close();
     
-    return $availability && $availability['available_rooms'] >= $requested_quantity;
+    $available_rooms = $total_rooms - $booked_rooms;
+    return $available_rooms >= $requested_quantity;
 }
 
 try {
@@ -78,7 +94,9 @@ try {
             'check_out' => $check_out,
             'amount' => $amount,
             'payment_method' => $payment_method,
-            'temp_id' => $tempBookingId
+            'temp_id' => $tempBookingId,
+            'room_quantity' => $data['room_quantity'],
+            'guests' => $data['guests']
         ];
 
         echo json_encode([
@@ -95,8 +113,8 @@ try {
     // Insert booking
     $insert_sql = "
         INSERT INTO bookings 
-        (listing_id, guest_id, check_in, check_out, total_price, payment_method, room_quantity) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (listing_id, guest_id, check_in, check_out, total_price, payment_method, room_quantity, number_of_guests) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ";
     
     $stmt = $conn->prepare($insert_sql);
@@ -105,14 +123,15 @@ try {
     }
     
     $stmt->bind_param(
-        "iissdsi",
+        "iissdsii",
         $room_id,
         $user_id,
         $check_in,
         $check_out,
         $amount,
         $payment_method,
-        $data['room_quantity']
+        $data['room_quantity'],
+        $data['guests']
     );
 
     if (!$stmt->execute()) {

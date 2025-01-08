@@ -258,7 +258,7 @@ if (!empty($phone_display)) {
 
           <div class="form-group">
             <label for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone" value="<?= htmlspecialchars($phone_display) ?>"
+            <input type="tel" id="phone" name="phone" max="10" value="<?= htmlspecialchars($phone_display) ?>"
               placeholder="98XXXXXXXX or 01XXXXXX">
             <small class="text-gray-500">Format: 98XXXXXXXX (mobile) or 01XXXXXX (landline)</small>
           </div>

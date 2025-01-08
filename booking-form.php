@@ -71,6 +71,47 @@ $stmt->close();
 $booked_dates_json = json_encode($booked_dates);
 
 $room_quantity = $room['quantity'];
+
+function validateBookingDates($conn, $listing_id, $check_in, $check_out, $requested_quantity) {
+    // First get the total rooms available for this listing
+    $stmt = $conn->prepare("SELECT quantity FROM listings WHERE id = ?");
+    $stmt->bind_param("i", $listing_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $listing = $result->fetch_assoc();
+    $total_rooms = $listing['quantity'];
+    $stmt->close();
+
+    // Then check existing bookings for the date range
+    $stmt = $conn->prepare("
+        SELECT SUM(room_quantity) as booked_rooms
+        FROM bookings
+        WHERE listing_id = ?
+        AND status != 'cancelled'
+        AND (
+            (check_in <= ? AND check_out >= ?) OR
+            (check_in <= ? AND check_out >= ?) OR
+            (? BETWEEN check_in AND check_out) OR
+            (? BETWEEN check_in AND check_out)
+        )
+    ");
+    
+    $stmt->bind_param("issssss", 
+        $listing_id,
+        $check_out, $check_in,
+        $check_in, $check_out,
+        $check_in, $check_out
+    );
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $bookings = $result->fetch_assoc();
+    $booked_rooms = $bookings['booked_rooms'] ?? 0;
+    $stmt->close();
+    
+    // Check if there are enough rooms available
+    $available_rooms = $total_rooms - $booked_rooms;
+    return $available_rooms >= $requested_quantity;
+}
 ?>
 
 <!DOCTYPE html>
@@ -237,7 +278,7 @@ $room_quantity = $room['quantity'];
 
       <div>
         <label class="block mb-2">Number of Guests:</label>
-        <input type="number" name="guests" required min="1" max="<?php echo $room['max_guests']; ?>"
+        <input type="number" name="guests" required min="1" default="1" max="<?php echo $room['max_guests']; ?>"
           class="w-full p-2 border rounded" oninput="validateGuests(this)">
       </div>
 

@@ -71,3 +71,6 @@ ADD COLUMN number_of_guests INT NOT NULL;
 
 ALTER TABLE bookings
 ADD COLUMN room_quantity INT DEFAULT 1;
+
+ALTER TABLE bookings
+ADD COLUMN status ENUM('pending', 'confirmed', 'cancelled') DEFAULT 'pending';

@@ -28,7 +28,12 @@ $query = "
         b.total_price,
         b.payment_method,
         b.payment_reference,
+        b.number_of_guests,
+        b.room_quantity,
+        b.created_at,
         l.title as room_title,
+        l.room_type,
+        l.quantity as number_of_rooms,
         u.name as guest_name,
         u.email as guest_email,
         u.phone as guest_phone
@@ -178,6 +183,10 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 </h2>
                 <div class="mt-2 space-y-1">
                   <p class="text-sm text-gray-600">
+                    <span class="font-medium">Booked on:</span>
+                    <?php echo date('F j, Y', strtotime($booking['created_at'])); ?>
+                  </p>
+                  <p class="text-sm text-gray-600">
                     <span class="font-medium">Check-in:</span>
                     <?php echo date('F j, Y', strtotime($booking['check_in'])); ?>
                   </p>
@@ -185,6 +194,16 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <span class="font-medium">Check-out:</span>
                     <?php echo date('F j, Y', strtotime($booking['check_out'])); ?>
                   </p>
+                  <p class="text-sm text-gray-600">
+                    <span class="font-medium">Number of Guests:</span>
+                    <?php echo htmlspecialchars($booking['number_of_guests']); ?>
+                  </p>
+                  <?php if ($booking['room_type'] !== 'entire_place'): ?>
+                  <p class="text-sm text-gray-600">
+                    <span class="font-medium">Number of Rooms:</span>
+                    <?php echo htmlspecialchars($booking['number_of_rooms']); ?>
+                  </p>
+                  <?php endif; ?>
                   <p class="text-sm text-gray-600">
                     <span class="font-medium">Total Price:</span>
                     NPR.<?php echo number_format($booking['total_price'], 2); ?>

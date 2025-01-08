@@ -214,6 +214,16 @@ $stmt->close();
               </div>
 
               <div class="detail-item">
+                <i data-lucide="users"></i>
+                <span><?php echo htmlspecialchars($booking['number_of_guests']); ?> guests</span>
+              </div>
+
+              <div class="detail-item">
+                <i data-lucide="home"></i>
+                <span><?php echo htmlspecialchars($booking['room_quantity']); ?> room(s)</span>
+              </div>
+
+              <div class="detail-item">
                 <i data-lucide="credit-card"></i>
                 <span>Total: NPR.<?php echo number_format($booking['total_price'], 2); ?></span>
               </div>
