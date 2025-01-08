@@ -418,30 +418,29 @@ $room_quantity = $room['quantity'];
     return;
     <?php endif; ?>
 
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
-    if (!paymentMethod) {
+    const formData = {
+      room_id: <?php echo $room_id; ?>,
+      check_in: checkInInput.value,
+      check_out: checkOutInput.value,
+      guests: parseInt(document.querySelector('input[name="guests"]').value),
+      room_quantity: parseInt(document.getElementById('room_quantity').value),
+      amount: calculatePrice(),
+      payment_method: document.querySelector('input[name="payment_method"]:checked')?.value
+    };
+
+    // Validate all required fields
+    if (!formData.payment_method) {
       showError('Please select a payment method');
       return;
     }
 
-    // Validate dates
-    if (!checkInInput.value || !checkOutInput.value) {
+    if (!formData.check_in || !formData.check_out) {
       showError('Please select both check-in and check-out dates');
       return;
     }
 
-    const checkIn = new Date(checkInInput.value);
-    const checkOut = new Date(checkOutInput.value);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (checkIn < today) {
-      showError('Check-in date cannot be in the past');
-      return;
-    }
-
-    if (checkOut <= checkIn) {
-      showError('Check-out date must be after check-in date');
+    if (!formData.room_quantity || formData.room_quantity < 1) {
+      showError('Please select number of rooms');
       return;
     }
 
@@ -451,14 +450,6 @@ $room_quantity = $room['quantity'];
         showError('Invalid booking amount');
         return;
       }
-
-      const formData = {
-        room_id: <?php echo $room_id; ?>,
-        check_in: checkInInput.value,
-        check_out: checkOutInput.value,
-        amount: totalAmount,
-        payment_method: paymentMethod.value
-      };
 
       // Show loading state
       const submitButton = this.querySelector('button[type="submit"]');
