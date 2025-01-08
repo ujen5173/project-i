@@ -32,7 +32,7 @@ $stmt = $conn->prepare("
     JOIN listings l ON b.listing_id = l.id
     JOIN users u ON l.host_id = u.id
     WHERE b.guest_id = ?
-    ORDER BY b.check_in DESC
+    ORDER BY b.created_at DESC
 ");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();

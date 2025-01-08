@@ -33,7 +33,6 @@ $query = "
         b.created_at,
         l.title as room_title,
         l.room_type,
-        l.quantity as number_of_rooms,
         u.name as guest_name,
         u.email as guest_email,
         u.phone as guest_phone
@@ -42,7 +41,7 @@ $query = "
     JOIN users u ON b.guest_id = u.id
     WHERE l.host_id = ? 
     AND b.check_out >= CURRENT_DATE()
-    ORDER BY b.check_in ASC
+    ORDER BY b.created_at DESC
 ";
 
 $stmt = $conn->prepare($query);
@@ -198,12 +197,10 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <span class="font-medium">Number of Guests:</span>
                     <?php echo htmlspecialchars($booking['number_of_guests']); ?>
                   </p>
-                  <?php if ($booking['room_type'] !== 'entire_place'): ?>
                   <p class="text-sm text-gray-600">
-                    <span class="font-medium">Number of Rooms:</span>
-                    <?php echo htmlspecialchars($booking['number_of_rooms']); ?>
+                    <span class="font-medium">Rooms Booked:</span>
+                    <?php echo htmlspecialchars($booking['room_quantity']); ?>
                   </p>
-                  <?php endif; ?>
                   <p class="text-sm text-gray-600">
                     <span class="font-medium">Total Price:</span>
                     NPR.<?php echo number_format($booking['total_price'], 2); ?>
@@ -240,6 +237,7 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
         <?php endif; ?>
       </main>
+
   </div>
 </body>
 

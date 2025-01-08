@@ -40,16 +40,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
     $check_out = $_POST['check_out'];
     
     // Get total rooms booked for the date range
-    $bookings_query = "SELECT COUNT(*) as booked_rooms, l.quantity
-                      FROM bookings b
-                      JOIN listings l ON b.listing_id = l.id
-                      WHERE b.listing_id = ?
-                      AND ((check_in BETWEEN ? AND ?) 
-                      OR (check_out BETWEEN ? AND ?)
-                      OR (check_in <= ? AND check_out >= ?))
-                      GROUP BY l.id";
-    
-    $stmt = $conn->prepare($bookings_query);
+$bookings_query = "SELECT COUNT(*) as booked_rooms, l.quantity 
+                   FROM bookings b
+                   JOIN listings l ON b.listing_id = l.id 
+                   WHERE b.listing_id = ?
+                   AND b.status != 'cancelled'  
+                   AND check_in < ? 
+                   AND check_out > ?
+                   GROUP BY l.id";
+
+$stmt->bind_param("iss", $listing_id, $check_out, $check_in);
+
     $stmt->bind_param("issssss", $listing_id, $check_in, $check_out, 
                       $check_in, $check_out, $check_in, $check_out);
     $stmt->execute();
@@ -64,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
     $listing_result = $stmt->get_result();
     $listing_data = $listing_result->fetch_assoc();
     
-    $booked_rooms = $booking_data['booked_rooms'] ?? 0;
-    $total_rooms = $listing_data['quantity'];
+$booked_rooms = $booking_data ? ($booking_data['booked_rooms'] ?? 0) : 0;
+$total_rooms = $listing_data['quantity'] ?? 0;
     $available_rooms = $total_rooms - $booked_rooms;
     
     $availability_data = [

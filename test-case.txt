@@ -144,3 +144,9 @@ search page bug for multiple room booking
 if a hotel have multiple rooms, and if one room is booked, the other room should be available for booking. (mistake in booking-form) 
 mistake in check availablity of room (check-availablity.php)
 number of guests in room (entire place ma number of guests hudaina)
+
+
+
+
+-------------------------
+- number of guets and number of rooms is incorrect in host_dashboard/bookings.php
