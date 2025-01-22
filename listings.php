@@ -291,7 +291,7 @@ if (!$result['success']) {
     </div>
     <div class="copyright__wrapper">
       <p class="copyright">
-        &copy; 2024 StayHaven. All rights reserved.
+        &copy; 2025 StayHaven. All rights reserved.
       </p>
     </div>
   </footer>

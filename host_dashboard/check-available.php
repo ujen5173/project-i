@@ -39,24 +39,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
     $check_in = $_POST['check_in'];
     $check_out = $_POST['check_out'];
     
-    // Get total rooms booked for the date range - UPDATED QUERY
+    // Updated booking query with corrected date range logic
     $bookings_query = "SELECT COALESCE(SUM(b.room_quantity), 0) as booked_rooms, l.quantity
                       FROM listings l
                       LEFT JOIN bookings b ON b.listing_id = l.id
-                      AND b.status = 'confirmed'  -- Only count confirmed bookings
                       AND (
-                          (b.check_in <= ? AND b.check_out > ?) OR
-                          (b.check_in < ? AND b.check_out >= ?) OR
-                          (b.check_in >= ? AND b.check_out <= ?)
+                          (b.check_in < ? AND b.check_out > ?) OR    -- Booking spans the check-in date
+                          (b.check_in >= ? AND b.check_in < ?) OR    -- Booking starts during the stay
+                          (b.check_in <= ? AND b.check_out > ?)      -- Booking overlaps with the stay
                       )
                       WHERE l.id = ?
                       GROUP BY l.id, l.quantity";
     
     $stmt = $conn->prepare($bookings_query);
     $stmt->bind_param("ssssss" . "i", 
-        $check_out, $check_in,  // For first condition
-        $check_out, $check_out, // For second condition
-        $check_in, $check_out,  // For third condition
+        $check_in, $check_in,      // For first condition
+        $check_in, $check_out,     // For second condition
+        $check_out, $check_out,    // For third condition
         $listing_id
     );
     $stmt->execute();

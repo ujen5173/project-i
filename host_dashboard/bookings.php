@@ -20,6 +20,41 @@ if ($user['role'] !== 'host') {
 }
 
 // Fetch ongoing bookings for the host's listings
+$search_query = "";
+$search_params = [];
+$where_conditions = ["l.host_id = ?"];
+$search_params[] = $_SESSION['user_id'];
+$param_types = "i";
+
+if (isset($_GET['search'])) {
+    if (!empty($_GET['guest_name'])) {
+        $where_conditions[] = "u.name LIKE ?";
+        $search_params[] = "%" . $_GET['guest_name'] . "%";
+        $param_types .= "s";
+    }
+    if (!empty($_GET['date_from'])) {
+        $where_conditions[] = "b.check_in >= ?";
+        $search_params[] = $_GET['date_from'];
+        $param_types .= "s";
+    }
+    if (!empty($_GET['date_to'])) {
+        $where_conditions[] = "b.check_out <= ?";
+        $search_params[] = $_GET['date_to'];
+        $param_types .= "s";
+    }
+    if (!empty($_GET['room_type'])) {
+        $where_conditions[] = "l.room_type = ?";
+        $search_params[] = $_GET['room_type'];
+        $param_types .= "s";
+    }
+    if (!empty($_GET['payment_method'])) {
+        $where_conditions[] = "b.payment_method = ?";
+        $search_params[] = $_GET['payment_method'];
+        $param_types .= "s";
+    }
+}
+
+$where_clause = implode(" AND ", $where_conditions);
 $query = "
     SELECT 
         b.id as booking_id,
@@ -39,15 +74,24 @@ $query = "
     FROM bookings b
     JOIN listings l ON b.listing_id = l.id
     JOIN users u ON b.guest_id = u.id
-    WHERE l.host_id = ? 
+    WHERE $where_clause
     AND b.check_out >= CURRENT_DATE()
     ORDER BY b.created_at DESC
 ";
 
 $stmt = $conn->prepare($query);
-$stmt->bind_param("i", $_SESSION['user_id']);
+if (!empty($search_params)) {
+    $stmt->bind_param($param_types, ...$search_params);
+}
 $stmt->execute();
 $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Get unique room types for the filter dropdown
+$room_types_query = "SELECT DISTINCT room_type FROM listings WHERE host_id = ?";
+$stmt = $conn->prepare($room_types_query);
+$stmt->bind_param("i", $_SESSION['user_id']);
+$stmt->execute();
+$room_types = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -84,6 +128,7 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     background-color: rgba(239, 68, 68, 0.1);
   }
   </style>
+  <link href="https://unpkg.com/@tailwindcss/forms@0.2.1/dist/forms.min.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50">
@@ -167,73 +212,176 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
       </div>
 
       <main class="max-w-7xl mx-auto py-6 px-4">
-        <h1 class="text-4xl font-semibold mb-4">Bookings:</h1>
+        <h1 class="text-4xl font-semibold mb-6">Bookings</h1>
+
+        <!-- Search Form -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+          <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">Guest Name</label>
+              <input type="text" name="guest_name"
+                value="<?php echo isset($_GET['guest_name']) ? htmlspecialchars($_GET['guest_name']) : ''; ?>"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500">
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">Check-in Date From</label>
+              <input type="date" name="date_from"
+                value="<?php echo isset($_GET['date_from']) ? htmlspecialchars($_GET['date_from']) : ''; ?>"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500">
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">Check-out Date To</label>
+              <input type="date" name="date_to"
+                value="<?php echo isset($_GET['date_to']) ? htmlspecialchars($_GET['date_to']) : ''; ?>"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500">
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">Room Type</label>
+              <select name="room_type"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                <option value="">All Types</option>
+                <?php foreach ($room_types as $type): ?>
+                <option value="<?php echo htmlspecialchars($type['room_type']); ?>"
+                  <?php echo (isset($_GET['room_type']) && $_GET['room_type'] == $type['room_type']) ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars($type['room_type']); ?>
+                </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">Payment Method</label>
+              <select name="payment_method"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                <option value="">All Methods</option>
+                <option value="cash"
+                  <?php echo (isset($_GET['payment_method']) && $_GET['payment_method'] == 'cash') ? 'selected' : ''; ?>>
+                  Cash</option>
+                <option value="esewa"
+                  <?php echo (isset($_GET['payment_method']) && $_GET['payment_method'] == 'esewa') ? 'selected' : ''; ?>>
+                  Esewa</option>
+              </select>
+            </div>
+
+            <div class="flex items-end space-x-2">
+              <button type="submit" name="search"
+                class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
+                Search
+              </button>
+              <a href="bookings.php"
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                Reset
+              </a>
+            </div>
+          </form>
+        </div>
+
+        <!-- Results count -->
+        <div class="mb-4 text-sm text-gray-600">
+          Found <?php echo count($bookings); ?> booking<?php echo count($bookings) !== 1 ? 's' : ''; ?>
+        </div>
+
         <?php if (empty($bookings)): ?>
         <div class="bg-white rounded-lg shadow p-6">
           <p class="text-gray-500">No ongoing bookings found.</p>
         </div>
         <?php else: ?>
-        <div class="grid gap-6">
-          <?php foreach ($bookings as $booking): ?>
-          <div class="bg-white rounded-lg shadow p-6">
-            <div class="grid md:grid-cols-2 gap-4">
-              <div>
-                <h2 class="text-xl font-semibold text-gray-900"><?php echo htmlspecialchars($booking['room_title']); ?>
-                </h2>
-                <div class="mt-2 space-y-1">
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Booked on:</span>
-                    <?php echo date('F j, Y', strtotime($booking['created_at'])); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Check-in:</span>
-                    <?php echo date('F j, Y', strtotime($booking['check_in'])); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Check-out:</span>
-                    <?php echo date('F j, Y', strtotime($booking['check_out'])); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Number of Guests:</span>
-                    <?php echo htmlspecialchars($booking['number_of_guests']); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Rooms Booked:</span>
-                    <?php echo htmlspecialchars($booking['room_quantity']); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Total Price:</span>
-                    NPR.<?php echo number_format($booking['total_price'], 2); ?>
-                  </p>
-                </div>
-              </div>
-              <div>
-                <h3 class="font-medium text-gray-900">Guest Information</h3>
-                <div class="mt-2 space-y-1">
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Name:</span>
-                    <?php echo htmlspecialchars($booking['guest_name']); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Email:</span>
-                    <?php echo htmlspecialchars($booking['guest_email']); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Phone:</span>
-                    <?php echo htmlspecialchars($booking['guest_phone']); ?>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <span class="font-medium">Payment Method:</span>
-                    <?php echo ucfirst($booking['payment_method']); ?>
-                    <?php if ($booking['payment_reference']): ?>
-                    (Ref: <?php echo htmlspecialchars($booking['payment_reference']); ?>)
-                    <?php endif; ?>
-                  </p>
-                </div>
-              </div>
-            </div>
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Room Details
+                  </th>
+                  <th scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Guest Information
+                  </th>
+                  <th scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Booking Details
+                  </th>
+                  <th scope="col"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <?php foreach ($bookings as $booking): ?>
+                <tr class="hover:bg-gray-50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium text-gray-900">
+                        <?php echo htmlspecialchars($booking['room_title']); ?>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        Type: <?php echo htmlspecialchars($booking['room_type']); ?>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        Rooms: <?php echo htmlspecialchars($booking['room_quantity']); ?>
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium text-gray-900">
+                        <?php echo htmlspecialchars($booking['guest_name']); ?>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        <?php echo htmlspecialchars($booking['guest_email']); ?>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        <?php echo htmlspecialchars($booking['guest_phone']); ?>
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex flex-col">
+                      <div class="flex items-center space-x-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none"
+                          viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span class="text-sm text-gray-500">
+                          <?php echo date('M d, Y', strtotime($booking['check_in'])); ?> -
+                          <?php echo date('M d, Y', strtotime($booking['check_out'])); ?>
+                        </span>
+                      </div>
+                      <span class="text-sm text-gray-500">
+                        Guests: <?php echo htmlspecialchars($booking['number_of_guests']); ?>
+                      </span>
+                      <span class="text-xs text-gray-400">
+                        Booked: <?php echo date('M d, Y', strtotime($booking['created_at'])); ?>
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium text-gray-900">
+                        NPR <?php echo number_format($booking['total_price'], 2); ?>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        <?php echo ucfirst($booking['payment_method']); ?>
+                      </span>
+                      <?php if ($booking['payment_reference']): ?>
+                      <span class="text-xs text-gray-400">
+                        Ref: <?php echo htmlspecialchars($booking['payment_reference']); ?>
+                      </span>
+                      <?php endif; ?>
+                    </div>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
           </div>
-          <?php endforeach; ?>
         </div>
         <?php endif; ?>
       </main>
