@@ -240,13 +240,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
   <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-8">Check Property Availability</h1>
 
+    <!-- Add a loading spinner -->
+    <div id="loading" class="hidden fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
+      <div class="loader"></div>
+    </div>
+
     <!-- Availability Check Form -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-      <form method="POST" class="space-y-4">
+      <form method="POST" class="space-y-4" onsubmit="showLoading()">
         <div>
           <label class="block text-sm font-medium text-gray-700">Select Property</label>
           <select name="listing_id" required
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 p-2">
             <option value="">Select a property</option>
             <?php foreach ($listings as $listing): ?>
             <option value="<?= htmlspecialchars($listing['id']) ?>">
@@ -262,17 +267,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
           <div>
             <label class="block text-sm font-medium text-gray-700">Check-in Date</label>
             <input type="date" name="check_in" required min="<?= date('Y-m-d') ?>"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 p-2"
+              placeholder="YYYY-MM-DD">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Check-out Date</label>
             <input type="date" name="check_out" required min="<?= date('Y-m-d') ?>"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 p-2"
+              placeholder="YYYY-MM-DD">
           </div>
         </div>
 
         <button type="submit" name="check_availability"
-          class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+          class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 ease-in-out">
           Check Availability
         </button>
       </form>
@@ -280,22 +287,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
 
     <!-- Availability Results -->
     <?php if ($availability_data): ?>
-    <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
       <h2 class="text-xl font-semibold mb-4">Availability Results for
         <span class="text-red-600 underline">
           <?= htmlspecialchars($availability_data['listing_title']) ?>
         </span>
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-gray-50 p-4 rounded-lg">
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-300">
           <p class="text-sm text-gray-500">Total Units</p>
           <p class="text-2xl font-bold"><?= $availability_data['total_rooms'] ?></p>
         </div>
-        <div class="bg-gray-50 p-4 rounded-lg">
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-300">
           <p class="text-sm text-gray-500">Booked Units</p>
           <p class="text-2xl font-bold text-red-600"><?= $availability_data['booked_rooms'] ?></p>
         </div>
-        <div class="bg-gray-50 p-4 rounded-lg">
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-300">
           <p class="text-sm text-gray-500">Available Units</p>
           <p class="text-2xl font-bold text-green-600"><?= $availability_data['available_rooms'] ?></p>
         </div>
@@ -329,6 +336,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
   <script>
   lucide.createIcons();
   </script>
+
+  <!-- Add JavaScript function to show loading spinner -->
+  <script>
+  function showLoading() {
+    document.getElementById('loading').classList.remove('hidden');
+  }
+  </script>
+
+  <!-- Add CSS for loading spinner -->
+  <style>
+  .loader {
+    border: 8px solid #f3f3f3;
+    /* Light grey */
+    border-top: 8px solid #3498db;
+    /* Blue */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  </style>
+
+  <!-- Add CSS for input focus effects -->
+  <style>
+  input:focus,
+  select:focus {
+    border-color: #f43f5e;
+    /* Tailwind red-500 */
+    box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.5);
+    /* Tailwind red-500 with opacity */
+  }
+  </style>
 </body>
 
 </html>
