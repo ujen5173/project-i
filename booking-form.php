@@ -122,8 +122,10 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Book <?php echo htmlspecialchars($room['title']); ?></title>
   <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="//unpkg.com/alpinejs" defer></script>
+  <link rel="stylesheet" href="css/booking-form.css">
 </head>
 
 <body class="bg-gray-50">
@@ -235,99 +237,149 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
     </nav>
   </header>
 
-  <div class="max-w-2xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6">Book <span
-        class="text-rose-600"><?php echo htmlspecialchars($room['title']); ?></span></h1>
+  <div class="max-w-7xl mx-auto p-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Booking Summary Card -->
+      <div class="bg-white rounded-xl shadow-sm p-6 h-fit sticky top-6 border border-slate-200">
+        <h2 class="text-2xl font-bold mb-4"><?php echo htmlspecialchars($room['title']); ?></h2>
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 text-gray-600">
+            <i data-lucide="map-pin" class="w-5 h-5"></i>
+            <span><?php echo htmlspecialchars($room['location']); ?></span>
+          </div>
+          <div class="flex items-center gap-2 text-gray-600">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span>Up to <?php echo $room['max_guests']; ?> guests</span>
+          </div>
+          <div class="flex items-center gap-2 text-gray-600">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span><?php echo $room['quantity']; ?> rooms available</span>
+          </div>
+          <div class="text-2xl font-bold text-rose-600">
+            NPR.<?php echo number_format($room['price'], 2); ?> <span class="text-sm text-gray-500">per night</span>
+          </div>
+        </div>
+      </div>
 
-    <?php if (empty($userDetails['phone'])): ?>
-    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-      <div class="flex">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd"
-              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-              clip-rule="evenodd" />
-          </svg>
-        </div>
-        <div class="ml-3">
-          <p class="text-sm text-yellow-700">
-            Please add your phone number before booking.
-            <a href="/stayhaven/user_profile.php" class="font-medium underline text-yellow-700 hover:text-yellow-600">
-              Update your profile here
-            </a>
-          </p>
-        </div>
+      <!-- Booking Form -->
+      <div class="bg-white rounded-xl shadow-sm p-6  border border-slate-200">
+        <form id="bookingForm" class="space-y-6">
+          <input type="hidden" name="room_id" class="w-0 h-0" value=" <?php echo $room_id; ?>">
+
+          <!-- Date Range Picker -->
+          <div class="space-y-4">
+            <label class="block text-sm font-medium text-gray-700">Select Dates</label>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Check-in</label>
+                <input type="date" name="check_in" id="check_in" min="<?php echo date('Y-m-d'); ?>" class="date-input"
+                  required>
+              </div>
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Check-out</label>
+                <input type="date" name="check_out" id="check_out" min="<?php echo date('Y-m-d'); ?>" class="date-input"
+                  required>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guests and Rooms Selection -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Guests</label>
+              <select name="guests" class="select-input">
+                <?php for($i = 1; $i <= $room['max_guests']; $i++): ?>
+                <option value="<?php echo $i; ?>"><?php echo $i; ?> guest<?php echo $i > 1 ? 's' : ''; ?></option>
+                <?php endfor; ?>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Rooms</label>
+              <select name="room_quantity" id="room_quantity" class="select-input">
+                <?php for($i = 1; $i <= min($room['quantity'], 5); $i++): ?>
+                <option value="<?php echo $i; ?>"><?php echo $i; ?> room<?php echo $i > 1 ? 's' : ''; ?></option>
+                <?php endfor; ?>
+              </select>
+            </div>
+          </div>
+
+          <!-- Price Summary -->
+          <div class="bg-gray-50 p-4 rounded-lg space-y-2 border border-slate-200">
+            <h3 class="font-medium text-gray-900">Price Details</h3>
+            <div id="totalPrice" class="space-y-2">
+              <div class="flex justify-between text-gray-600">
+                <span>Price per night</span>
+                <span>NPR.<?php echo number_format($room['price'], 2); ?></span>
+              </div>
+              <div class="flex justify-between text-gray-600">
+                <span>Number of nights</span>
+                <span id="numberOfNights">0</span>
+              </div>
+              <div class="flex justify-between font-medium text-gray-900 pt-2 border-t">
+                <span>Total</span>
+                <span>NPR.<span id="priceAmount">0</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Method -->
+          <div class="space-y-3">
+            <label class="block text-sm font-medium text-gray-700">Payment Method</label>
+            <div class="space-y-2">
+              <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="payment_method" value="esewa" class="h-4 w-4 text-rose-600">
+                <span class="ml-3">eSewa</span>
+              </label>
+              <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="payment_method" value="cash" class="h-4 w-4 text-rose-600">
+                <span class="ml-3">Cash on arrival</span>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-button" id="submitButton">
+            <span id="buttonText">Complete Booking</span>
+          </button>
+        </form>
       </div>
     </div>
-    <?php endif; ?>
-
-    <form id="bookingForm" class="space-y-4">
-      <input type="hidden" name="room_id" value="<?php echo $room_id; ?>">
-
-      <div>
-        <label class="block mb-2">Check-in Date:</label>
-        <input type="date" name="check_in" required min="<?php echo date('Y-m-d'); ?>"
-          class="w-full p-2 border rounded">
-      </div>
-
-      <div>
-        <label class="block mb-2">Check-out Date:</label>
-        <input type="date" name="check_out" required min="<?php echo date('Y-m-d'); ?>"
-          class="w-full p-2 border rounded">
-      </div>
-
-      <div>
-        <label class="block mb-2">Number of Guests:</label>
-        <input type="number" name="guests" required min="1" default="1" max="<?php echo $room['max_guests']; ?>"
-          class="w-full p-2 border rounded" oninput="validateGuests(this)">
-      </div>
-
-      <div class="mb-4">
-        <label for="room_quantity" class="block text-sm font-medium text-gray-700 mb-1">Number of Rooms</label>
-        <select name="room_quantity" id="room_quantity" class="w-full p-2 border border-gray-300 rounded-md" required>
-          <?php
-          $max_rooms = min($room['quantity'], 5); // Limit to 5 rooms per booking
-          for ($i = 1; $i <= $max_rooms; $i++) {
-              echo "<option value=\"$i\">$i</option>";
-          }
-          ?>
-        </select>
-      </div>
-
-      <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-semibold mb-2">Price Details</h2>
-        <p>Price per night: NPR.<?php echo number_format($room['price'], 2); ?></p>
-        <div id="totalPrice" class="hidden mt-2">
-          <p>Number of nights: <span id="numberOfNights">0</span></p>
-          <p>Total price: NPR.<span id="priceAmount">0</span></p>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <label class="block font-medium">Payment Method:</label>
-        <div class="space-y-2">
-          <label class="flex items-center">
-            <input type="radio" name="payment_method" value="esewa" class="mr-2">
-            eSewa
-          </label>
-          <label class="flex items-center">
-            <input type="radio" name="payment_method" value="cash" class="mr-2">
-            Cash on arrival
-          </label>
-        </div>
-      </div>
-
-      <button type="submit" class="w-full bg-rose-600 text-white py-2 px-4 rounded hover:bg-rose-700">
-        Reserve Room
-      </button>
-    </form>
-
-    <div id="esewaPayment"></div>
   </div>
 
+  <div id="esewaPayment"></div>
+
   <script>
-  const bookedDates = <?php echo json_encode($booked_dates); ?>;
-  const roomQuantity = <?php echo $room_quantity; ?>;
+  // Simplified date handling
+  document.getElementById('check_in').addEventListener('change', function() {
+    const checkOutInput = document.getElementById('check_out');
+    checkOutInput.min = this.value;
+    calculatePrice();
+  });
+
+  document.getElementById('check_out').addEventListener('change', function() {
+    const checkInInput = document.getElementById('check_in');
+    checkInInput.max = this.value;
+    calculatePrice();
+  });
+
+  function calculatePrice() {
+    const checkInDate = document.getElementById('check_in').value;
+    const checkOutDate = document.getElementById('check_out').value;
+
+    if (checkInDate && checkOutDate) {
+      const start = new Date(checkInDate);
+      const end = new Date(checkOutDate);
+      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      const quantity = parseInt(document.getElementById('room_quantity').value);
+      const total = days * <?php echo $room['price']; ?> * quantity;
+
+      document.getElementById('numberOfNights').textContent = days;
+      document.getElementById('priceAmount').textContent = total.toFixed(2);
+      return total;
+    }
+    return 0;
+  }
+
   const checkInInput = document.querySelector('input[name="check_in"]');
   const checkOutInput = document.querySelector('input[name="check_out"]');
   const pricePerNight = <?php echo $room['price']; ?>;
@@ -355,35 +407,6 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
     });
   }
 
-  function calculatePrice() {
-    if (checkInInput.value && checkOutInput.value) {
-      const start = new Date(checkInInput.value);
-      const end = new Date(checkOutInput.value);
-      const days = (end - start) / (1000 * 60 * 60 * 24);
-      const quantity = parseInt(roomQuantitySelect.value);
-      const total = days * pricePerNight * quantity;
-
-      totalPriceDiv.classList.remove('hidden');
-      document.getElementById('numberOfNights').textContent = days;
-      priceAmount.textContent = total.toFixed(2);
-      return total;
-    }
-    return 0;
-  }
-
-  setDateConstraints(checkInInput);
-  setDateConstraints(checkOutInput);
-
-  checkInInput.addEventListener('change', function() {
-    if (this.value) {
-      checkOutInput.min = this.value;
-      if (checkOutInput.value && checkOutInput.value < this.value) {
-        checkOutInput.value = '';
-      }
-      calculatePrice();
-    }
-  });
-
   function validateGuests(input) {
     const maxGuests = <?php echo $room['max_guests']; ?>;
     if (parseInt(input.value) > maxGuests) {
@@ -399,13 +422,13 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
     errorDiv.innerHTML = `
-      <div class="fixed top-4 right-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg shadow-lg border border-red-200 flex items-center gap-2 animate-slide-in">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-        </svg>
-        ${message}
-      </div>
-    `;
+        <div class="fixed top-4 right-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg shadow-lg border border-red-200 flex items-center gap-2 animate-slide-in">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          ${message}
+        </div>
+      `;
     document.body.appendChild(errorDiv);
 
     // Remove after 5 seconds
@@ -418,36 +441,36 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
   // Add this CSS to your styles
   const style = document.createElement('style');
   style.textContent = `
-    .animate-slide-in {
-      animation: slideIn 0.3s ease-out;
-    }
-    
-    .animate-slide-out {
-      animation: slideOut 0.3s ease-out;
-    }
-    
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
+      .animate-slide-in {
+        animation: slideIn 0.3s ease-out;
       }
-      to {
-        transform: translateX(0);
-        opacity: 1;
+      
+      .animate-slide-out {
+        animation: slideOut 0.3s ease-out;
       }
-    }
-    
-    @keyframes slideOut {
-      from {
-        transform: translateX(0);
-        opacity: 1;
+      
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
       }
-      to {
-        transform: translateX(100%);
-        opacity: 0;
+      
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
       }
-    }
-  `;
+    `;
   document.head.appendChild(style);
 
   // Update your form submission handler
@@ -463,7 +486,7 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
       room_id: <?php echo $room_id; ?>,
       check_in: checkInInput.value,
       check_out: checkOutInput.value,
-      guests: parseInt(document.querySelector('input[name="guests"]').value),
+      guests: parseInt(document.querySelector('select[name="guests"]').value),
       room_quantity: parseInt(document.getElementById('room_quantity').value),
       amount: calculatePrice(),
       payment_method: document.querySelector('input[name="payment_method"]:checked')?.value
@@ -493,16 +516,18 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
       }
 
       // Show loading state
-      const submitButton = this.querySelector('button[type="submit"]');
-      const originalButtonText = submitButton.innerHTML;
+      const submitButton = document.getElementById('submitButton');
+      const buttonText = document.getElementById('buttonText');
+      const originalButtonText = buttonText.innerHTML;
+
       submitButton.disabled = true;
-      submitButton.innerHTML = `
-            <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Processing...
-        `;
+      buttonText.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Processing...
+      `;
 
       const response = await fetch('process-booking.php', {
         method: 'POST',
@@ -527,11 +552,11 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
 
     } catch (error) {
       console.error('Error:', error);
-      showError(error.message);
+      showError(error.message || 'An error occurred while processing your booking');
     } finally {
       // Restore button state
       submitButton.disabled = false;
-      submitButton.innerHTML = originalButtonText;
+      buttonText.innerHTML = originalButtonText;
     }
   });
 
@@ -570,9 +595,11 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
       this.value = '';
     }
   });
+  </script>
 
-  const roomQuantitySelect = document.getElementById('room_quantity');
-  roomQuantitySelect.addEventListener('change', calculatePrice);
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+  lucide.createIcons();
   </script>
 </body>
 
