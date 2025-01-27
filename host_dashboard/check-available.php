@@ -39,23 +39,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
     $check_in = $_POST['check_in'];
     $check_out = $_POST['check_out'];
     
-    // Updated booking query with corrected date range logic
+    // Updated booking query with corrected date range...
     $bookings_query = "SELECT COALESCE(SUM(b.room_quantity), 0) as booked_rooms, l.quantity
                       FROM listings l
                       LEFT JOIN bookings b ON b.listing_id = l.id
                       AND (
-                          (b.check_in < ? AND b.check_out > ?) OR    -- Booking spans the check-in date
-                          (b.check_in >= ? AND b.check_in < ?) OR    -- Booking starts during the stay
-                          (b.check_in <= ? AND b.check_out > ?)      -- Booking overlaps with the stay
+                          (b.check_in < ? AND b.check_out > ?) OR
+                          (b.check_in >= ? AND b.check_in < ?) OR
+                          (b.check_in <= ? AND b.check_out > ?)
                       )
                       WHERE l.id = ?
                       GROUP BY l.id, l.quantity";
     
     $stmt = $conn->prepare($bookings_query);
     $stmt->bind_param("ssssss" . "i", 
-        $check_in, $check_in,      // For first condition
-        $check_in, $check_out,     // For second condition
-        $check_out, $check_out,    // For third condition
+        $check_in, $check_in,
+        $check_in, $check_out,
+        $check_out, $check_out,
         $listing_id
     );
     $stmt->execute();
@@ -124,6 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/bookings.css">
   <link rel="stylesheet" href="css/index.css">
+
+  <!-- This is for the dropdown click system -->
   <script src="//unpkg.com/alpinejs" defer></script>
 
 </head>
@@ -197,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
             <?php endif; ?>
 
             <?php if ($userDetails['role'] === 'host'): ?>
-            <a href="/stayhaven/user_profile.php"
+            <a href="/stayhaven/host_dashboard/index.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
               Dashboard
@@ -368,14 +370,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_availability'])
   }
   </style>
 
-  <!-- Add CSS for input focus effects -->
   <style>
   input:focus,
   select:focus {
     border-color: #f43f5e;
-    /* Tailwind red-500 */
     box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.5);
-    /* Tailwind red-500 with opacity */
   }
   </style>
 </body>

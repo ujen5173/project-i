@@ -104,7 +104,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       </div>
 
       <div class="input-group">
-        <select name="role" id="role" required>
+        <select style="padding: .7rem .5rem; border-radius: .5rem;" name="role" id="role" required>
           <option value="">Select your role</option>
           <option value="guest">Guest</option>
           <option value="host">Host</option>

@@ -1,9 +1,9 @@
 <?php
 class EsewaPayment {
     private const MERCHANT_ID = 'EPAYTEST';
-    private const TEST_URL = 'https://uat.esewa.com.np/epay/main/v2/form';
+    private const TEST_URL = 'https://rc-epay.esewa.com.np/api/epay/main/v2/form';
     private const TEST_VERIFY_URL = 'https://uat.esewa.com.np/epay/transrec';
-    
+     
     private $amount;
     private $productCode;
     private $successUrl;

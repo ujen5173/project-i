@@ -130,7 +130,7 @@ $stmt->close();
             <?php endif; ?>
 
             <?php if ($userDetails['role'] === 'host'): ?>
-            <a href="/stayhaven/user_profile.php"
+            <a href="/stayhaven/host_dashboard/index.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
               Dashboard

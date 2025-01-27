@@ -80,10 +80,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
          <div class="error-message" id="passwordError"></div>
        </div>
 
-       <p class="forgot-password">
-         <a href="reset-password.php">Forgot password?</a>
-       </p>
-
        <button type="submit">Log in</button>
      </form>
 
@@ -92,9 +88,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
      </p>
    </div>
 
-   <script>
-   // Add your client-side validation script here
-   </script>
  </body>
 
  </html>

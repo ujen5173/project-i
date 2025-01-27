@@ -2,7 +2,6 @@
 session_start();
 require_once 'db/config.php';
 
-// Function to get user details
 function getUserDetails($conn, $user_id) {
     $stmt = $conn->prepare("SELECT id, name, email, role FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
@@ -11,7 +10,6 @@ function getUserDetails($conn, $user_id) {
     return $result->fetch_assoc();
 }
 
-// Check if user is logged in
 $isLoggedIn = isset($_SESSION['user_id']);
 $userDetails = null;
 
@@ -19,10 +17,8 @@ if ($isLoggedIn) {
     $userDetails = getUserDetails($conn, $_SESSION['user_id']);
 }
 
-// Get amenities
 $amenities = $conn->query("SELECT * FROM amenities ORDER BY name")->fetch_all(MYSQLI_ASSOC);
 
-// Base query
 $mainQuery = "SELECT DISTINCT l.*, u.name as host_name 
               FROM listings l 
               JOIN users u ON l.host_id = u.id";
@@ -95,7 +91,6 @@ if (!empty($_GET)) {
 $mainQuery .= " ORDER BY l.created_at DESC";
 $listings = $conn->query($mainQuery)->fetch_all(MYSQLI_ASSOC);
 
-// Check for query errors
 if ($conn->error) {
     die("Query failed: " . $conn->error);
 }
@@ -184,7 +179,7 @@ if ($conn->error) {
             <?php endif; ?>
 
             <?php if ($userDetails['role'] === 'host'): ?>
-            <a href="/stayhaven/user_profile.php"
+            <a href="/stayhaven/host_dashboard/index.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
               Dashboard

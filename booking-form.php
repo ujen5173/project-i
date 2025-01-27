@@ -129,7 +129,6 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
 </head>
 
 <body class="bg-gray-50">
-
   <header class="bg-white border-b border-slate-200">
     <nav class="container mx-auto px-4">
       <div class="flex items-center justify-between h-16 w-full">
@@ -197,7 +196,7 @@ function validateBookingDates($conn, $listing_id, $check_in, $check_out, $reques
             <?php endif; ?>
 
             <?php if ($userDetails['role'] === 'host'): ?>
-            <a href="/stayhaven/user_profile.php"
+            <a href="/stayhaven/host_dashboard/index.php"
               class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
               Dashboard

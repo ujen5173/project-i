@@ -74,3 +74,7 @@ ADD COLUMN room_quantity INT DEFAULT 1;
 
 ALTER TABLE bookings
 ADD COLUMN status ENUM('pending', 'confirmed', 'cancelled') DEFAULT 'pending';
+
+ALTER TABLE users
+ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL,
+ADD COLUMN reset_token_expiry DATETIME DEFAULT NULL;
